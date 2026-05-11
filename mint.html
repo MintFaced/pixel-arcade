@@ -1150,11 +1150,12 @@
     <div class="success-title">★ MINT COMPLETE ★</div>
     <div class="success-sub">
       <span class="hl" id="successCount">0</span> WORK<span id="successS">S</span> NOW IN YOUR WALLET<br />
-      ROLL HASH: <span style="color:var(--neon-cyan); font-family:var(--font-screen);" id="successHash">0x...</span>
+      ROLL HASH: <span style="color:var(--neon-cyan); font-family:var(--font-screen);" id="successHash">0x...</span><br /><br />
+      <span style="color:var(--neon-yellow); font-size: 16px;">★ NEXT · CLAIM PHYSICALS? ★</span>
     </div>
     <div class="success-actions">
-      <button class="coin-btn ghost" onclick="window.location.reload();">PLAY AGAIN</button>
-      <button class="coin-btn" onclick="document.getElementById('successOverlay').classList.remove('show');">VIEW YOUR MINTS ►</button>
+      <button class="coin-btn ghost" onclick="window.location.href='/mint';">SKIP · ROLL AGAIN</button>
+      <button class="coin-btn" onclick="window.location.href='/my-mints';">CLAIM PHYSICALS ►</button>
     </div>
   </div>
 </div>
@@ -1600,9 +1601,18 @@ document.getElementById('mintBtn').addEventListener('click', () => {
   const locked = state.rolls.filter(r => r.locked);
   if (locked.length === 0) return;
 
+  // Stash minted token IDs so the my-mints page can pre-select them for physical claim.
+  // Includes the session flag (timestamp + count) so my-mints knows this is a fresh post-mint hand-off.
+  const mintedPayload = {
+    tokenIds: locked.map(r => r.game.tokenId),
+    mintedAt: Date.now(),
+    txHash: '0x' + randomHex(12) + '...'
+  };
+  sessionStorage.setItem('pixelarcade_post_mint_claim', JSON.stringify(mintedPayload));
+
   document.getElementById('successCount').textContent = locked.length;
   document.getElementById('successS').style.display = locked.length === 1 ? 'none' : 'inline';
-  document.getElementById('successHash').textContent = '0x' + randomHex(12) + '...';
+  document.getElementById('successHash').textContent = mintedPayload.txHash;
   document.getElementById('successOverlay').classList.add('show');
 });
 
