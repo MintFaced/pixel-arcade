@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+  // Gate check — if not unlocked this session, bounce to landing
+  if (sessionStorage.getItem('pixelarcade_unlocked') !== '1') {
+    window.location.replace('/');
+  }
+</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>★ YOUR MINTS ★ PIXELARCADE.ART ★</title>

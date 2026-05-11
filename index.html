@@ -271,9 +271,178 @@
     .cab-btn { padding: 28px 18px; }
     .footer { padding: 20px 18px; font-size: 10px; }
   }
+  /* === PASSWORD GATE === */
+  .gate {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    gap: 28px;
+  }
+  .gate.unlocked { display: none; }
+  .gate::before {
+    content: ""; position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 2px, rgba(0,0,0,0.4) 3px, rgba(0,0,0,0.4) 4px);
+    pointer-events: none;
+  }
+  .gate-inner {
+    position: relative;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+    max-width: 420px;
+    width: 100%;
+  }
+  .gate-title {
+    font-family: var(--font-display);
+    font-size: clamp(20px, 4vw, 32px);
+    color: var(--neon-yellow);
+    letter-spacing: 0.08em;
+    text-shadow:
+      2px 0 0 var(--neon-red),
+      -2px 0 0 var(--neon-cyan),
+      0 0 30px var(--neon-yellow);
+    animation: gateChroma 2.4s ease-in-out infinite;
+  }
+  @keyframes gateChroma {
+    0%, 100% { text-shadow: 2px 0 0 var(--neon-red), -2px 0 0 var(--neon-cyan), 0 0 30px var(--neon-yellow); }
+    50% { text-shadow: -3px 0 0 var(--neon-red), 3px 0 0 var(--neon-cyan), 0 0 40px var(--neon-yellow); }
+  }
+  .gate-prompt {
+    font-family: var(--font-display);
+    font-size: 11px;
+    color: var(--neon-cyan);
+    letter-spacing: 0.24em;
+    animation: blink 0.8s steps(2) infinite;
+  }
+  .gate-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+  }
+  .gate-input {
+    width: 100%;
+    padding: 18px 20px;
+    background: #000;
+    border: 3px solid var(--neon-magenta);
+    color: var(--neon-yellow);
+    font-family: var(--font-display);
+    font-size: 18px;
+    text-align: center;
+    letter-spacing: 0.16em;
+    text-shadow: 0 0 12px var(--neon-yellow);
+    text-transform: uppercase;
+    box-shadow: 0 0 20px var(--neon-magenta), inset 0 0 16px rgba(203,2,178,0.15);
+    outline: none;
+  }
+  .gate-input::placeholder { color: var(--pixel-fade); text-shadow: none; }
+  .gate-input:focus {
+    border-color: var(--neon-yellow);
+    box-shadow: 0 0 30px var(--neon-yellow), inset 0 0 16px rgba(255,240,0,0.15);
+  }
+  .gate-input.wrong {
+    animation: gateShake 0.3s steps(4);
+    border-color: var(--neon-red);
+    color: var(--neon-red);
+    text-shadow: 0 0 12px var(--neon-red);
+  }
+  @keyframes gateShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+  .gate-submit {
+    font-family: var(--font-display);
+    font-size: 13px;
+    padding: 16px 28px;
+    background: var(--neon-magenta);
+    color: #fff;
+    border: 3px solid #fff;
+    cursor: pointer;
+    letter-spacing: 0.14em;
+    text-shadow: 2px 2px 0 #000;
+    box-shadow:
+      5px 5px 0 #000,
+      0 0 24px var(--neon-magenta),
+      inset 2px 2px 0 rgba(255,255,255,0.3);
+    transition: all 0.05s;
+  }
+  .gate-submit:hover {
+    background: var(--neon-pink);
+    transform: translate(-2px, -2px);
+    box-shadow: 7px 7px 0 #000, 0 0 36px var(--neon-pink);
+  }
+  .gate-submit:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 #000, 0 0 24px var(--neon-pink);
+  }
+  .gate-footer {
+    font-family: var(--font-pixel);
+    font-size: 11px;
+    color: var(--pixel-fade);
+    letter-spacing: 0.16em;
+    margin-top: 8px;
+  }
 </style>
 </head>
 <body>
+
+<!-- PASSWORD GATE — appropriate theater for a prototype -->
+<div class="gate" id="gate">
+  <div class="gate-inner">
+    <div class="gate-prompt">▼ AUTHORIZED ACCESS ONLY ▼</div>
+    <div class="gate-title">★ INSERT PASSCODE ★</div>
+    <form class="gate-form" onsubmit="return checkPasscode(event)">
+      <input
+        type="password"
+        id="gateInput"
+        class="gate-input"
+        placeholder="ENTER PASSCODE"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        required
+      />
+      <button type="submit" class="gate-submit">UNLOCK ►</button>
+    </form>
+    <div class="gate-footer">PROTOTYPE · MINTFACE 2026</div>
+  </div>
+</div>
+
+<script>
+  // If already unlocked this session, skip the gate
+  if (sessionStorage.getItem('pixelarcade_unlocked') === '1') {
+    document.getElementById('gate').classList.add('unlocked');
+  } else {
+    // focus input after a beat
+    setTimeout(function() {
+      var el = document.getElementById('gateInput');
+      if (el) el.focus();
+    }, 100);
+  }
+  function checkPasscode(e) {
+    e.preventDefault();
+    var input = document.getElementById('gateInput');
+    if (input.value.trim().toLowerCase() === 'arcade26') {
+      sessionStorage.setItem('pixelarcade_unlocked', '1');
+      document.getElementById('gate').classList.add('unlocked');
+    } else {
+      input.classList.add('wrong');
+      input.value = '';
+      setTimeout(function() { input.classList.remove('wrong'); input.focus(); }, 400);
+    }
+    return false;
+  }
+</script>
 
 <div class="crt-vignette"></div>
 <div class="crt-noise"></div>
