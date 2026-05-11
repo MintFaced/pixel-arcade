@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>★ MINT ★ PIXELARCADE.ART ★</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --mint-purple:   #3B35BD;
+    --mint-purple-2: #5A52E0;
+    --face-pink:     #CB02B2;
+    --face-pink-2:   #FF1AD9;
+    --leaf-green:    #00361A;
+    --leaf-green-2:  #00C84F;
+
+    --void:   #08021a;
+    --void-2: #0e0428;
+    --crt-bg: #1a0840;
+
+    --neon-pink:    var(--face-pink-2);
+    --neon-magenta: var(--face-pink);
+    --neon-purple:  var(--mint-purple);
+    --neon-cyan:    #00fff0;
+    --neon-yellow:  #fff000;
+    --neon-green:   var(--leaf-green-2);
+    --neon-red:     #ff0040;
+
+    --pixel-white:  #ffffff;
+    --pixel-dim:    #c8c0e8;
+    --pixel-fade:   #7a6ea8;
+
+    --font-display: 'Press Start 2P', monospace;
+    --font-screen:  'VT323', monospace;
+    --font-pixel:   'Silkscreen', monospace;
+
+    /* era colors for badges */
+    --era-8:   var(--neon-cyan);
+    --era-16:  var(--neon-yellow);
+    --era-32:  var(--face-pink-2);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--void);
+    color: var(--pixel-white);
+    font-family: var(--font-screen);
+    overflow-x: hidden;
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><rect x='6' y='0' width='4' height='4' fill='%2300fff0'/><rect x='6' y='12' width='4' height='4' fill='%2300fff0'/><rect x='0' y='6' width='4' height='4' fill='%2300fff0'/><rect x='12' y='6' width='4' height='4' fill='%2300fff0'/><rect x='7' y='7' width='2' height='2' fill='%23FF1AD9'/></svg>") 8 8, crosshair;
+  }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, var(--crt-bg) 0%, var(--void-2) 50%, var(--void) 100%), var(--void);
+    background-attachment: fixed;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0;
+    background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 2px, rgba(0,0,0,0.35) 3px, rgba(0,0,0,0.35) 4px);
+    pointer-events: none; z-index: 9999; animation: scanrollA 12s linear infinite;
+  }
+  body::after {
+    content: ""; position: fixed; left: 0; right: 0; top: -20%; height: 60%;
+    background: linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.02) 49%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 51%, transparent 100%);
+    pointer-events: none; z-index: 9998; animation: sweep 8s linear infinite;
+  }
+  @keyframes scanrollA { from { background-position: 0 0; } to { background-position: 0 100px; } }
+  @keyframes sweep { 0% { transform: translateY(-30vh); } 100% { transform: translateY(140vh); } }
+  .crt-vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 9997;
+    background:
+      radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.55) 100%),
+      radial-gradient(ellipse at center, transparent 75%, rgba(203, 2, 178, 0.08) 95%, transparent 100%);
+  }
+  .crt-noise {
+    position: fixed; inset: 0; pointer-events: none; z-index: 9996; opacity: 0.08;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: screen; animation: noiseShift 0.4s steps(4) infinite;
+  }
+  @keyframes noiseShift {
+    0% { transform: translate(0,0); } 25% { transform: translate(-2px,1px); }
+    50% { transform: translate(1px,-2px); } 75% { transform: translate(-1px,2px); } 100% { transform: translate(0,0); }
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* MARQUEE */
+  .marquee {
+    position: relative; padding: 18px 32px 14px;
+    background: linear-gradient(to bottom, #1a0033 0%, #0d0220 100%);
+    border-bottom: 4px solid var(--neon-magenta);
+    box-shadow: 0 0 30px var(--neon-magenta), inset 0 -8px 30px rgba(203,2,178,0.3);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 24px; flex-wrap: wrap; z-index: 10;
+  }
+  .marquee-title {
+    font-family: var(--font-display); font-size: 18px; color: var(--neon-yellow);
+    letter-spacing: 0.05em;
+    text-shadow: 2px 0 0 var(--neon-red), -2px 0 0 var(--neon-cyan), 0 0 20px var(--neon-yellow);
+    animation: chromaShift 3s ease-in-out infinite;
+  }
+  @keyframes chromaShift {
+    0%, 100% { text-shadow: 2px 0 0 var(--neon-red), -2px 0 0 var(--neon-cyan), 0 0 20px var(--neon-yellow); }
+    50% { text-shadow: -3px 0 0 var(--neon-red), 3px 0 0 var(--neon-cyan), 0 0 30px var(--neon-yellow); }
+  }
+  .marquee-title .star { display: inline-block; color: var(--neon-cyan); animation: spinStar 1s steps(8) infinite; }
+  @keyframes spinStar { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  .marquee-status { display: flex; gap: 18px; align-items: center; font-family: var(--font-pixel); font-size: 14px; color: var(--neon-cyan); flex-wrap: wrap; }
+  .marquee-status .player1 {
+    color: var(--neon-pink); padding: 4px 10px; border: 2px solid var(--neon-pink);
+    box-shadow: 0 0 10px var(--neon-pink), inset 0 0 10px rgba(255,26,217,0.2);
+  }
+  .marquee-status .wallet { color: var(--neon-green); font-family: var(--font-screen); font-size: 18px; }
+  .marquee-status .tier-badge {
+    color: var(--neon-yellow); animation: blink 0.7s steps(2) infinite;
+    padding: 4px 10px; border: 2px solid var(--neon-yellow);
+    box-shadow: 0 0 14px var(--neon-yellow);
+  }
+
+  /* HUD — repurposed for mint screen */
+  .hud {
+    display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0;
+    background: #000; border-bottom: 2px solid var(--neon-cyan);
+    font-family: var(--font-display); font-size: 10px;
+  }
+  .hud-cell { padding: 14px 20px; border-right: 2px solid var(--neon-cyan); text-align: center; }
+  .hud-cell:last-child { border-right: none; }
+  .hud-label { color: var(--neon-cyan); margin-bottom: 8px; letter-spacing: 0.1em; }
+  .hud-value {
+    font-family: var(--font-screen); font-size: 32px; color: var(--neon-yellow);
+    text-shadow: 0 0 12px var(--neon-yellow); letter-spacing: 0.02em;
+  }
+  .hud-value.pink { color: var(--neon-pink); text-shadow: 0 0 12px var(--neon-pink); }
+  .hud-value.green { color: var(--neon-green); text-shadow: 0 0 12px var(--neon-green); }
+  .hud-value.magenta { color: var(--neon-magenta); text-shadow: 0 0 12px var(--neon-magenta); }
+  .hud-value.pulse { animation: hudPulse 0.8s steps(2) infinite; }
+  @keyframes hudPulse {
+    50% { transform: scale(1.08); }
+  }
+
+  /* TITLE BAR */
+  .title-bar {
+    padding: 40px 32px 20px;
+    text-align: center;
+  }
+  .title-eyebrow {
+    font-family: var(--font-display); font-size: 11px; color: var(--neon-cyan);
+    letter-spacing: 0.3em; margin-bottom: 16px; animation: blink 1.4s steps(2) infinite;
+  }
+  .title-bar h1 {
+    font-family: var(--font-display); font-size: clamp(28px, 5vw, 52px);
+    line-height: 1; letter-spacing: 0.04em; color: var(--neon-pink);
+    text-shadow: 4px 4px 0 var(--neon-purple), 8px 8px 0 var(--neon-cyan), 0 0 40px var(--neon-pink);
+  }
+
+  /* ===== HERO STAGE ===== */
+  .stage {
+    margin: 30px 32px;
+    background: #000;
+    border: 4px solid var(--neon-cyan);
+    box-shadow: 0 0 40px rgba(0, 255, 240, 0.3), 8px 8px 0 var(--neon-magenta);
+    position: relative;
+    min-height: 480px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .stage-bezel {
+    position: absolute; inset: 12px;
+    border: 2px solid #1a0033;
+    background:
+      radial-gradient(ellipse at center, var(--crt-bg) 0%, #000 100%);
+    box-shadow: inset 0 0 60px rgba(0,0,0,0.8);
+  }
+  .stage-bezel::before {
+    content: ""; position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 3px);
+    pointer-events: none;
+  }
+
+  /* states */
+  .stage-content {
+    position: relative; z-index: 2;
+    width: 100%;
+    padding: 40px;
+    text-align: center;
+  }
+
+  /* STATE A: idle / insert coin */
+  .idle-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+  }
+  .idle-attract {
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--neon-cyan);
+    letter-spacing: 0.3em;
+    animation: blink 1s steps(2) infinite;
+  }
+  .insert-coin-btn {
+    font-family: var(--font-display);
+    font-size: clamp(20px, 3.5vw, 32px);
+    padding: 32px 48px;
+    background: var(--neon-magenta);
+    color: var(--pixel-white);
+    border: 4px solid var(--pixel-white);
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    text-shadow: 3px 3px 0 #000;
+    box-shadow:
+      8px 8px 0 #000,
+      0 0 50px var(--neon-magenta),
+      inset 3px 3px 0 rgba(255,255,255,0.3),
+      inset -3px -3px 0 rgba(0,0,0,0.4);
+    transition: all 0.08s;
+    animation: insertCoinPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes insertCoinPulse {
+    0%, 100% { box-shadow: 8px 8px 0 #000, 0 0 50px var(--neon-magenta), inset 3px 3px 0 rgba(255,255,255,0.3), inset -3px -3px 0 rgba(0,0,0,0.4); }
+    50% { box-shadow: 8px 8px 0 #000, 0 0 90px var(--neon-magenta), 0 0 120px var(--neon-pink), inset 3px 3px 0 rgba(255,255,255,0.3), inset -3px -3px 0 rgba(0,0,0,0.4); }
+  }
+  .insert-coin-btn:hover {
+    background: var(--neon-pink); transform: translate(-3px, -3px);
+    box-shadow: 11px 11px 0 #000, 0 0 80px var(--neon-pink), inset 3px 3px 0 rgba(255,255,255,0.3), inset -3px -3px 0 rgba(0,0,0,0.4);
+    animation: none;
+  }
+  .insert-coin-btn:active {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 #000, 0 0 60px var(--neon-pink), inset 3px 3px 0 rgba(0,0,0,0.4), inset -3px -3px 0 rgba(255,255,255,0.3);
+  }
+  .idle-rolls-info {
+    font-family: var(--font-display); font-size: 12px;
+    color: var(--neon-yellow);
+    letter-spacing: 0.12em;
+    text-shadow: 0 0 12px var(--neon-yellow);
+  }
+  .idle-rolls-info .big {
+    font-family: var(--font-screen); font-size: 48px;
+    color: var(--neon-yellow);
+    margin: 0 12px;
+    text-shadow: 0 0 16px var(--neon-yellow);
+    vertical-align: middle;
+  }
+  .idle-info-line {
+    font-family: var(--font-screen);
+    font-size: 18px;
+    color: var(--pixel-dim);
+    line-height: 1.4;
+    max-width: 540px;
+    margin: 0 auto;
+  }
+  .idle-info-line .hl { color: var(--neon-cyan); }
+
+  /* STATE B: rolling (VRF + slot) */
+  .rolling-screen { display: flex; flex-direction: column; align-items: center; gap: 24px; }
+  .vrf-log {
+    font-family: var(--font-screen);
+    font-size: 16px;
+    color: var(--neon-green);
+    text-shadow: 0 0 8px var(--neon-green);
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+    text-align: left;
+    min-height: 90px;
+    width: 100%;
+    max-width: 600px;
+  }
+  .vrf-log .prompt::before { content: "> "; }
+  .vrf-log .hex {
+    color: var(--neon-cyan);
+    word-break: break-all;
+  }
+  .era-slots {
+    display: flex;
+    gap: 8px;
+    margin-top: 24px;
+    height: 80px;
+    align-items: center;
+  }
+  .era-slot {
+    width: 140px; height: 80px;
+    background: #000;
+    border: 3px solid var(--pixel-fade);
+    font-family: var(--font-display);
+    font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--pixel-fade);
+    letter-spacing: 0.08em;
+    position: relative;
+    overflow: hidden;
+  }
+  .era-slot.spinning {
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 30px var(--neon-cyan);
+  }
+  .era-slot .reel {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: reelSpin 0.08s linear infinite;
+  }
+  .era-slot .reel span {
+    height: 80px;
+    display: flex; align-items: center;
+    font-family: var(--font-display);
+    font-size: 18px;
+    letter-spacing: 0.08em;
+  }
+  .era-slot .reel span.era-8  { color: var(--era-8);  text-shadow: 0 0 10px var(--era-8); }
+  .era-slot .reel span.era-16 { color: var(--era-16); text-shadow: 0 0 10px var(--era-16); }
+  .era-slot .reel span.era-32 { color: var(--era-32); text-shadow: 0 0 10px var(--era-32); }
+  @keyframes reelSpin {
+    from { transform: translateY(0); }
+    to { transform: translateY(-80px); }
+  }
+  .era-slot.landed {
+    border-color: currentColor;
+    color: currentColor;
+    text-shadow: 0 0 16px currentColor;
+    box-shadow: 0 0 40px currentColor, inset 0 0 20px rgba(255,255,255,0.1);
+    animation: landFlash 0.4s steps(2) 2;
+  }
+  .era-slot.landed.era-8  { color: var(--era-8); }
+  .era-slot.landed.era-16 { color: var(--era-16); }
+  .era-slot.landed.era-32 { color: var(--era-32); }
+  @keyframes landFlash {
+    50% { background: currentColor; color: #000; }
+  }
+
+  /* STATE C: revealed */
+  .revealed-screen {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: center;
+    text-align: left;
+  }
+  .revealed-screen .painting-side { display: flex; flex-direction: column; align-items: center; }
+  .revealed-screen .info-side { display: flex; flex-direction: column; gap: 20px; }
+
+  .era-banner {
+    font-family: var(--font-display);
+    font-size: clamp(16px, 2.5vw, 22px);
+    padding: 10px 18px;
+    border: 3px solid currentColor;
+    letter-spacing: 0.12em;
+    margin-bottom: 16px;
+    align-self: flex-start;
+    box-shadow: 0 0 20px currentColor;
+    animation: bannerBang 0.3s steps(3);
+  }
+  .era-banner.era-8  { color: var(--era-8); }
+  .era-banner.era-16 { color: var(--era-16); }
+  .era-banner.era-32 { color: var(--era-32); }
+  @keyframes bannerBang {
+    0%   { transform: scale(2); opacity: 0; }
+    50%  { transform: scale(0.8); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .era-banner-row {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .era-size-tag {
+    font-family: var(--font-pixel); font-size: 11px;
+    color: var(--pixel-dim); letter-spacing: 0.1em;
+  }
+  .era-size-tag.lottery { color: var(--neon-yellow); animation: blink 0.6s steps(2) infinite; }
+
+  /* the revealed pixel grid */
+  .reveal-grid-wrap {
+    background: #1a0033;
+    padding: 16px;
+    border: 3px solid #000;
+    box-shadow: inset 2px 2px 0 rgba(0,0,0,0.6), inset -2px -2px 0 rgba(255,255,255,0.08);
+    width: 100%;
+    max-width: 480px;
+    position: relative;
+  }
+  .reveal-grid-wrap::before {
+    content: ""; position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 2px, rgba(0,0,0,0.25) 2px, rgba(0,0,0,0.25) 3px);
+    pointer-events: none; z-index: 5;
+  }
+  .pixel-grid {
+    display: grid; gap: 0; width: 100%; aspect-ratio: var(--ar);
+    image-rendering: pixelated; image-rendering: crisp-edges;
+    border: 2px solid #000; position: relative;
+    background: #000;
+  }
+  .pixel-grid.era-8  { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); --ar: 2 / 1; }
+  .pixel-grid.era-16 { grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(2, 1fr); --ar: 4 / 1; }
+  .pixel-grid.era-32 { grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(4, 1fr); --ar: 2 / 1; }
+  .pixel {
+    display: block;
+    aspect-ratio: 1 / 1;
+    transform: scale(0);
+    transition: transform 0.06s steps(3), background 0s;
+    background: #000;
+  }
+  .pixel.lit { transform: scale(1); }
+
+  /* game name + screenshot side */
+  .game-trait {
+    font-family: var(--font-display);
+    font-size: clamp(16px, 2.2vw, 22px);
+    color: var(--neon-yellow);
+    text-shadow: 0 0 14px var(--neon-yellow);
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+    min-height: 1.3em;
+    overflow: hidden;
+    white-space: nowrap;
+    border-right: 3px solid var(--neon-yellow);
+    width: 0;
+    animation: typeOut 1s steps(40, end) 0.5s forwards, blinkCursor 0.5s steps(2) infinite;
+  }
+  @keyframes typeOut {
+    from { width: 0; }
+    to   { width: 100%; }
+  }
+  @keyframes blinkCursor {
+    50% { border-color: transparent; }
+  }
+  .game-final-title {
+    font-family: var(--font-screen);
+    font-size: 22px;
+    color: var(--pixel-dim);
+    font-style: italic;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+    opacity: 0;
+    animation: fadeIn 0.4s 1.4s forwards;
+  }
+  .game-year {
+    font-family: var(--font-pixel);
+    font-size: 12px;
+    color: var(--neon-cyan);
+    letter-spacing: 0.18em;
+    opacity: 0;
+    animation: fadeIn 0.4s 1.6s forwards;
+  }
+  @keyframes fadeIn { to { opacity: 1; } }
+
+  .screenshot-frame {
+    background: #000;
+    border: 3px solid var(--neon-cyan);
+    padding: 6px;
+    box-shadow: 0 0 20px var(--neon-cyan);
+    opacity: 0;
+    animation: fadeIn 0.5s 1.8s forwards;
+    position: relative;
+    max-width: 280px;
+  }
+  .screenshot-frame::before {
+    content: ""; position: absolute; inset: 6px;
+    background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 2px, rgba(0,0,0,0.4) 2px, rgba(0,0,0,0.4) 3px);
+    pointer-events: none; z-index: 5;
+  }
+  .screenshot-frame img {
+    display: block; width: 100%; height: auto;
+    image-rendering: pixelated;
+    filter: contrast(1.1) saturate(1.3);
+  }
+  .screenshot-caption {
+    font-family: var(--font-pixel);
+    font-size: 10px;
+    color: var(--pixel-fade);
+    letter-spacing: 0.15em;
+    margin-top: 8px;
+    text-align: center;
+  }
+
+  /* lock/roll buttons */
+  .reveal-actions {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    opacity: 0;
+    animation: actionsSlideUp 0.4s 2.0s forwards;
+  }
+  @keyframes actionsSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .coin-btn {
+    font-family: var(--font-display); font-size: 12px; padding: 16px 26px;
+    background: var(--neon-magenta); color: #fff; border: 3px solid #fff;
+    cursor: pointer; letter-spacing: 0.12em; text-shadow: 2px 2px 0 #000;
+    box-shadow: 4px 4px 0 #000, inset 2px 2px 0 rgba(255,255,255,0.3), inset -2px -2px 0 rgba(0,0,0,0.4);
+    transition: transform 0.05s, box-shadow 0.05s;
+  }
+  .coin-btn:hover:not(:disabled) {
+    background: var(--neon-pink); transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 #000, inset 2px 2px 0 rgba(255,255,255,0.3), inset -2px -2px 0 rgba(0,0,0,0.4), 0 0 30px var(--neon-pink);
+  }
+  .coin-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 #000, inset 2px 2px 0 rgba(0,0,0,0.4), inset -2px -2px 0 rgba(255,255,255,0.3);
+  }
+  .coin-btn.ghost { background: #000; color: var(--neon-cyan); border-color: var(--neon-cyan); }
+  .coin-btn.ghost:hover:not(:disabled) { background: var(--neon-cyan); color: #000; box-shadow: 6px 6px 0 #000, 0 0 30px var(--neon-cyan); }
+  .coin-btn.lock { background: var(--neon-yellow); color: #000; border-color: #fff; text-shadow: 1px 1px 0 #fff; }
+  .coin-btn.lock:hover:not(:disabled) {
+    background: #fff; color: var(--neon-yellow);
+    box-shadow: 6px 6px 0 #000, 0 0 40px var(--neon-yellow);
+  }
+  .coin-btn.lock.locked {
+    background: var(--neon-green); color: #000;
+    animation: lockedPulse 1.2s steps(2) infinite;
+  }
+  @keyframes lockedPulse {
+    50% { box-shadow: 4px 4px 0 #000, 0 0 50px var(--neon-green); }
+  }
+  .coin-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ===== TRAY (previous rolls) ===== */
+  .tray {
+    margin: 20px 32px 30px;
+    background: #000;
+    border: 3px solid var(--neon-purple);
+    padding: 18px 20px;
+    box-shadow: 0 0 30px rgba(59,53,189,0.4);
+  }
+  .tray-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .tray-label {
+    font-family: var(--font-display);
+    font-size: 11px;
+    color: var(--neon-purple);
+    letter-spacing: 0.16em;
+    text-shadow: 0 0 8px var(--neon-purple);
+  }
+  .tray-hint {
+    font-family: var(--font-pixel);
+    font-size: 11px;
+    color: var(--pixel-fade);
+    letter-spacing: 0.12em;
+  }
+  .tray-hint .hl { color: var(--neon-yellow); }
+
+  .tray-slots {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+  }
+  .tray-slot {
+    background: #0a0419;
+    border: 3px solid var(--pixel-fade);
+    padding: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.1s;
+    min-height: 130px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .tray-slot.empty {
+    cursor: default;
+    border-style: dashed;
+    border-color: var(--pixel-fade);
+    background: repeating-linear-gradient(45deg, #0a0419 0, #0a0419 8px, #0e0428 8px, #0e0428 16px);
+    align-items: center;
+    justify-content: center;
+  }
+  .tray-slot.empty .empty-num {
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--pixel-fade);
+    letter-spacing: 0.1em;
+  }
+  .tray-slot.empty.next {
+    border-color: var(--neon-magenta);
+    box-shadow: 0 0 16px var(--neon-magenta), inset 0 0 16px rgba(203,2,178,0.15);
+    animation: nextSlotPulse 1s steps(2) infinite;
+  }
+  .tray-slot.empty.next .empty-num {
+    color: var(--neon-magenta);
+    text-shadow: 0 0 10px var(--neon-magenta);
+  }
+  @keyframes nextSlotPulse {
+    50% { box-shadow: 0 0 30px var(--neon-magenta), inset 0 0 16px rgba(203,2,178,0.3); }
+  }
+
+  .tray-slot.filled {
+    border-color: var(--pixel-fade);
+  }
+  .tray-slot.filled.locked {
+    border-color: var(--neon-yellow);
+    box-shadow: 0 0 18px var(--neon-yellow);
+    animation: trayLockedPulse 1.4s steps(2) infinite;
+  }
+  @keyframes trayLockedPulse {
+    50% { box-shadow: 0 0 30px var(--neon-yellow); }
+  }
+  .tray-slot.filled.active {
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 22px var(--neon-cyan);
+    transform: translateY(-2px);
+  }
+  .tray-slot.filled:hover:not(.active) {
+    transform: translateY(-2px);
+    border-color: var(--neon-cyan);
+  }
+
+  .tray-thumb {
+    aspect-ratio: 2 / 1;
+    display: grid;
+    border: 2px solid #000;
+    image-rendering: pixelated;
+  }
+  .tray-slot .thumb-pixel { display: block; aspect-ratio: 1 / 1; }
+  .tray-slot-meta {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 8px;
+  }
+  .tray-slot-title {
+    font-family: var(--font-display);
+    font-size: 9px;
+    color: var(--pixel-dim);
+    letter-spacing: 0.06em;
+    line-height: 1.3;
+    flex: 1;
+    text-shadow: 0 0 6px currentColor;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tray-slot.locked .tray-slot-title { color: var(--neon-yellow); }
+  .tray-slot-status {
+    font-family: var(--font-pixel);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+  }
+  .tray-slot.locked .tray-slot-status { color: var(--neon-yellow); animation: blink 1s steps(2) infinite; }
+  .tray-slot.filled:not(.locked) .tray-slot-status { color: var(--pixel-fade); }
+  .tray-era-tag {
+    position: absolute;
+    top: -10px; left: 8px;
+    font-family: var(--font-display);
+    font-size: 8px;
+    padding: 3px 6px;
+    background: #000;
+    border: 2px solid currentColor;
+    letter-spacing: 0.08em;
+  }
+  .tray-era-tag.era-8  { color: var(--era-8); }
+  .tray-era-tag.era-16 { color: var(--era-16); }
+  .tray-era-tag.era-32 { color: var(--era-32); }
+
+  /* ===== WALK-AWAY WARNING BAND ===== */
+  .warning-band {
+    margin: 0 32px 20px;
+    background: #000;
+    border: 2px solid var(--neon-red);
+    padding: 10px 16px;
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--neon-red);
+    letter-spacing: 0.14em;
+    text-align: center;
+    text-shadow: 0 0 8px var(--neon-red);
+    box-shadow: 0 0 14px rgba(255,0,64,0.3);
+    animation: warningBlink 2.4s steps(2) infinite;
+  }
+  @keyframes warningBlink {
+    0%, 80% { opacity: 1; }
+    90% { opacity: 0.4; }
+    100% { opacity: 1; }
+  }
+
+  /* ===== MINT COMMIT BAR (sticky bottom) ===== */
+  .commit-bar {
+    margin: 30px 32px 50px;
+    background: linear-gradient(to right, #000 0%, #1a0033 50%, #000 100%);
+    border: 4px solid var(--neon-yellow);
+    padding: 24px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    box-shadow: 0 0 40px var(--neon-yellow);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(20px);
+    transition: opacity 0.3s, transform 0.3s steps(6);
+  }
+  .commit-bar.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+  .commit-summary {
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--neon-yellow);
+    letter-spacing: 0.08em;
+    text-shadow: 0 0 12px var(--neon-yellow);
+    line-height: 1.5;
+  }
+  .commit-summary .price {
+    font-family: var(--font-screen);
+    font-size: 32px;
+    color: var(--neon-green);
+    text-shadow: 0 0 16px var(--neon-green);
+    margin-left: 12px;
+    vertical-align: middle;
+  }
+  .commit-summary .count-pulse {
+    color: var(--neon-pink);
+    animation: blink 0.8s steps(2) infinite;
+  }
+  .mint-btn {
+    font-family: var(--font-display);
+    font-size: 16px;
+    padding: 22px 36px;
+    background: var(--neon-green);
+    color: #000;
+    border: 4px solid #fff;
+    cursor: pointer;
+    letter-spacing: 0.14em;
+    box-shadow:
+      6px 6px 0 #000,
+      0 0 30px var(--neon-green),
+      inset 2px 2px 0 rgba(255,255,255,0.4),
+      inset -2px -2px 0 rgba(0,0,0,0.3);
+    transition: all 0.05s;
+  }
+  .mint-btn:hover {
+    background: #fff;
+    color: var(--neon-green);
+    transform: translate(-3px, -3px);
+    box-shadow: 9px 9px 0 #000, 0 0 50px var(--neon-green);
+  }
+  .mint-btn:active {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 #000, 0 0 30px var(--neon-green);
+  }
+  .mint-btn:disabled {
+    background: var(--pixel-fade); color: #000; cursor: not-allowed;
+    box-shadow: 3px 3px 0 #000;
+    transform: none;
+  }
+
+  /* ===== TOAST ===== */
+  .toast {
+    position: fixed; bottom: 32px; left: 50%;
+    transform: translateX(-50%) translateY(120px);
+    background: #000; color: var(--neon-green);
+    padding: 16px 24px; border: 3px solid var(--neon-green);
+    font-family: var(--font-display); font-size: 11px; letter-spacing: 0.14em;
+    z-index: 300; opacity: 0;
+    transition: opacity 0.2s, transform 0.2s steps(6);
+    box-shadow: 5px 5px 0 var(--neon-green), 0 0 30px var(--neon-green);
+    text-shadow: 0 0 8px var(--neon-green);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* mint success modal */
+  .success-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.95);
+    z-index: 500;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s;
+    padding: 24px;
+  }
+  .success-overlay.show { opacity: 1; pointer-events: auto; }
+  .success-content {
+    text-align: center;
+    transform: scale(0.9);
+    transition: transform 0.3s steps(6);
+  }
+  .success-overlay.show .success-content { transform: scale(1); }
+  .success-title {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 5vw, 52px);
+    color: var(--neon-yellow);
+    text-shadow: 4px 4px 0 var(--neon-red), 0 0 40px var(--neon-yellow);
+    margin-bottom: 24px;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+  }
+  .success-sub {
+    font-family: var(--font-screen);
+    font-size: 22px;
+    color: var(--pixel-dim);
+    margin-bottom: 32px;
+    line-height: 1.4;
+  }
+  .success-sub .hl { color: var(--neon-green); }
+  .success-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+
+  /* responsive */
+  @media (max-width: 800px) {
+    .marquee { padding: 14px 18px; }
+    .marquee-title { font-size: 14px; }
+    .hud { grid-template-columns: 1fr 1fr; }
+    .hud-cell:nth-child(2) { border-right: none; }
+    .hud-cell:nth-child(-n+2) { border-bottom: 2px solid var(--neon-cyan); }
+    .title-bar { padding: 32px 18px 12px; }
+    .stage { margin: 20px 18px; min-height: 380px; }
+    .stage-content { padding: 24px; }
+    .revealed-screen { grid-template-columns: 1fr; gap: 20px; }
+    .era-banner-row { justify-content: center; }
+    .reveal-actions { justify-content: center; }
+    .tray, .commit-bar, .warning-band { margin-left: 18px; margin-right: 18px; }
+    .commit-bar { padding: 18px 20px; }
+    .era-slots { gap: 4px; }
+    .era-slot { width: 90px; height: 60px; font-size: 13px; }
+    .era-slot .reel span { height: 60px; font-size: 13px; }
+    @keyframes reelSpin { from { transform: translateY(0); } to { transform: translateY(-60px); } }
+  }
+  /* ===== CRT POWER-ON OVERLAY ===== */
+  .crt-poweron {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 10000;
+    pointer-events: auto;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .crt-poweron.done {
+    animation: poweronFadeOut 0.4s steps(4) forwards;
+    pointer-events: none;
+  }
+  @keyframes poweronFadeOut {
+    to { opacity: 0; }
+  }
+
+  /* Stage 1: horizontal line snaps in (~0.0s - 0.3s) */
+  .crt-line {
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: #fff;
+    box-shadow: 0 0 20px #fff, 0 0 40px var(--neon-cyan);
+    transform: scaleX(0);
+    animation:
+      lineSnap 0.25s steps(2) 0.15s forwards,
+      lineExpand 0.5s cubic-bezier(0.5, 0, 0.5, 1) 0.5s forwards;
+  }
+  @keyframes lineSnap {
+    0%   { transform: scaleX(0); }
+    50%  { transform: scaleX(1.05); }
+    100% { transform: scaleX(1); }
+  }
+  @keyframes lineExpand {
+    0%   { height: 2px; }
+    60%  { height: 130%; }
+    100% { height: 100%; }
+  }
+
+  /* Stage 2: bloom — overexposed white wash (~0.8s - 1.1s) */
+  .crt-bloom {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    animation: bloom 0.5s steps(3) 0.85s forwards;
+  }
+  @keyframes bloom {
+    0%   { opacity: 0; }
+    30%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* Stage 3: RGB channel separation (~1.2s - 1.8s) */
+  .crt-rgb {
+    position: absolute;
+    inset: 0;
+    display: none;
+    z-index: 2;
+  }
+  .crt-rgb.show { display: block; }
+  .crt-rgb .channel {
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 4px,
+      currentColor 4px,
+      currentColor 5px
+    );
+    opacity: 0.6;
+    mix-blend-mode: screen;
+  }
+  .crt-rgb .channel.r { color: var(--neon-red);  animation: chR 0.6s steps(6) forwards; }
+  .crt-rgb .channel.g { color: var(--neon-green); animation: chG 0.6s steps(6) forwards; }
+  .crt-rgb .channel.b { color: var(--neon-cyan); animation: chB 0.6s steps(6) forwards; }
+  @keyframes chR {
+    0%   { transform: translateX(-30px); opacity: 0.8; }
+    100% { transform: translateX(0); opacity: 0; }
+  }
+  @keyframes chG {
+    0%   { transform: translateX(0); opacity: 0.6; }
+    100% { transform: translateX(0); opacity: 0; }
+  }
+  @keyframes chB {
+    0%   { transform: translateX(30px); opacity: 0.8; }
+    100% { transform: translateX(0); opacity: 0; }
+  }
+
+  /* Stage 4: "PIXELARCADE.ART" boot text appears (~1.8s - 2.4s) */
+  .crt-boot-text {
+    position: relative;
+    z-index: 3;
+    text-align: center;
+    opacity: 0;
+    animation: bootTextIn 0.3s steps(4) 1.8s forwards;
+  }
+  @keyframes bootTextIn { to { opacity: 1; } }
+  .crt-boot-title {
+    font-family: var(--font-display);
+    font-size: clamp(20px, 4vw, 36px);
+    color: var(--neon-yellow);
+    letter-spacing: 0.06em;
+    text-shadow:
+      2px 0 0 var(--neon-red),
+      -2px 0 0 var(--neon-cyan),
+      0 0 30px var(--neon-yellow);
+    margin-bottom: 14px;
+    animation: chromaShift 1s ease-in-out infinite;
+  }
+  .crt-boot-sub {
+    font-family: var(--font-screen);
+    font-size: 20px;
+    color: var(--neon-green);
+    text-shadow: 0 0 12px var(--neon-green);
+    letter-spacing: 0.04em;
+  }
+  .crt-boot-sub::after {
+    content: "_";
+    animation: blink 0.4s steps(2) infinite;
+  }
+
+  /* persistent scanlines on the overlay */
+  .crt-poweron::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 2px,
+      rgba(0,0,0,0.4) 3px,
+      rgba(0,0,0,0.4) 4px
+    );
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  /* skip button */
+  .crt-skip {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    z-index: 10;
+    background: #000;
+    border: 2px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    font-family: var(--font-display);
+    font-size: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    letter-spacing: 0.12em;
+    box-shadow: 0 0 14px var(--neon-cyan);
+    opacity: 0;
+    animation: skipBtnIn 0.3s ease 0.2s forwards;
+  }
+  @keyframes skipBtnIn { to { opacity: 1; } }
+  .crt-skip:hover {
+    background: var(--neon-cyan);
+    color: #000;
+  }
+</style>
+</head>
+<body>
+
+<!-- CRT POWER-ON OVERLAY — plays once per session -->
+<div class="crt-poweron" id="crtPoweron">
+  <div class="crt-line"></div>
+  <div class="crt-bloom"></div>
+  <div class="crt-rgb" id="crtRgb">
+    <div class="channel r"></div>
+    <div class="channel g"></div>
+    <div class="channel b"></div>
+  </div>
+  <div class="crt-boot-text">
+    <div class="crt-boot-title">★ PIXELARCADE.ART ★</div>
+    <div class="crt-boot-sub">SYSTEM READY</div>
+  </div>
+  <button class="crt-skip" onclick="skipPoweron()">SKIP ►</button>
+</div>
+
+<script>
+  // Show power-on once per session; skip on subsequent navigations
+  (function() {
+    var alreadyBooted = sessionStorage.getItem('pixelarcade_booted');
+    var overlay = document.getElementById('crtPoweron');
+    if (alreadyBooted) {
+      overlay.style.display = 'none';
+      return;
+    }
+    // Trigger RGB channel separation at the right moment
+    setTimeout(function() {
+      document.getElementById('crtRgb').classList.add('show');
+    }, 1200);
+    // End the animation after ~2.6s
+    setTimeout(function() {
+      overlay.classList.add('done');
+      sessionStorage.setItem('pixelarcade_booted', '1');
+      setTimeout(function() { overlay.style.display = 'none'; }, 400);
+    }, 2600);
+  })();
+  function skipPoweron() {
+    var overlay = document.getElementById('crtPoweron');
+    overlay.classList.add('done');
+    sessionStorage.setItem('pixelarcade_booted', '1');
+    setTimeout(function() { overlay.style.display = 'none'; }, 400);
+  }
+</script>
+
+<div class="crt-vignette"></div>
+<div class="crt-noise"></div>
+
+<div class="marquee">
+  <div class="marquee-title"><span class="star">★</span> PIXELARCADE.ART <span class="star">★</span></div>
+  <div class="marquee-status">
+    <span class="player1">PLAYER 1</span>
+    <span class="wallet">0x7A3F…B9C2</span>
+    <span class="tier-badge">★ TDH WHALE · 5 ROLLS ★</span>
+  </div>
+</div>
+
+<div class="hud">
+  <div class="hud-cell">
+    <div class="hud-label">ROLLS LEFT</div>
+    <div class="hud-value pulse" id="hudRolls">5</div>
+  </div>
+  <div class="hud-cell">
+    <div class="hud-label">POOL</div>
+    <div class="hud-value green" id="hudPool">64</div>
+  </div>
+  <div class="hud-cell">
+    <div class="hud-label">LOCKED</div>
+    <div class="hud-value pink" id="hudLocked">0</div>
+  </div>
+  <div class="hud-cell">
+    <div class="hud-label">SESSION</div>
+    <div class="hud-value magenta">ACTIVE</div>
+  </div>
+</div>
+
+<section class="title-bar">
+  <div class="title-eyebrow">▼ MINT ROOM · 64 ARCADE PIXEL PAINTINGS ▼</div>
+  <h1>ROLL TO MINT</h1>
+</section>
+
+<main class="stage">
+  <div class="stage-bezel"></div>
+  <div class="stage-content" id="stageContent">
+    <!-- populated by JS -->
+  </div>
+</main>
+
+<div class="warning-band" id="warningBand">
+  ★ WALK AWAY = ALL ROLLS RELEASED TO POOL · FIRST TO MINT WINS ★
+</div>
+
+<section class="tray">
+  <div class="tray-head">
+    <div class="tray-label">▼ YOUR ROLLS ▼</div>
+    <div class="tray-hint">TAP ANY ROLL TO <span class="hl">TOGGLE LOCK</span></div>
+  </div>
+  <div class="tray-slots" id="traySlots"></div>
+</section>
+
+<section class="commit-bar" id="commitBar">
+  <div class="commit-summary">
+    READY TO MINT <span class="count-pulse" id="commitCount">0</span> LOCKED WORK<span id="commitS">S</span>
+    <span class="price" id="commitPrice">0.00 ETH</span>
+  </div>
+  <button class="mint-btn" id="mintBtn">MINT ALL LOCKED ►</button>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<div class="success-overlay" id="successOverlay">
+  <div class="success-content">
+    <div class="success-title">★ MINT COMPLETE ★</div>
+    <div class="success-sub">
+      <span class="hl" id="successCount">0</span> WORK<span id="successS">S</span> NOW IN YOUR WALLET<br />
+      ROLL HASH: <span style="color:var(--neon-cyan); font-family:var(--font-screen);" id="successHash">0x...</span>
+    </div>
+    <div class="success-actions">
+      <button class="coin-btn ghost" onclick="window.location.reload();">PLAY AGAIN</button>
+      <button class="coin-btn" onclick="document.getElementById('successOverlay').classList.remove('show');">VIEW YOUR MINTS ►</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   POOL — real games with screenshot URLs
+   Screenshots from Wikimedia Commons (CC / fair use thumbnails)
+   ============================================================ */
+const POOL = [
+  { id:'g1', trait:'Pac-Man', finalTitle:'Eight-Bit Study No. 8', era:'8-bit', year:1980, grid:[2,4],
+    palette:['#000000','#2121DE','#FFFF00','#FF0000','#FFB8FF','#00FFFF','#FFB851','#DEBA87'],
+    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/5/59/Pac-man.png/250px-Pac-man.png' },
+  { id:'g2', trait:'Frogger', finalTitle:'Eight-Bit Study No. 7', era:'8-bit', year:1981, grid:[2,4],
+    palette:['#000000','#00A800','#54FC54','#0058F8','#A85400','#FC9838','#F83800','#FCFC00'],
+    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/9/99/Frogger.png/250px-Frogger.png' },
+  { id:'g3', trait:'Galaga', finalTitle:'Eight-Bit Study No. 11', era:'8-bit', year:1981, grid:[2,4],
+    palette:['#000000','#FFFFFF','#FF0000','#FFCC00','#00C8FF','#FF6800','#A800A8','#888888'],
+    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/2/22/Galaga.png/250px-Galaga.png' },
+  { id:'g4', trait:'Mario Bros.', finalTitle:'Eight-Bit Study No. 6', era:'8-bit', year:1983, grid:[2,4],
+    palette:['#000000','#0058F8','#F83800','#FCFCFC','#A85400','#FCBC54','#54FC54','#FCFC00'],
+    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/9/9c/Mario_Bros._Arcade.png/250px-Mario_Bros._Arcade.png' },
+  { id:'g5', trait:'Zelda: A Link to the Past', finalTitle:'Sixteen-Bit Composition VIII', era:'16-bit', year:1991, grid:[2,8],
+    palette:['#48A030','#286818','#F8E098','#3070C8','#88C8E8','#E0A058','#A03020','#988878'],
+    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/2/21/The_Legend_of_Zelda_A_Link_to_the_Past_SNES_Game_Cover.jpg/250px-The_Legend_of_Zelda_A_Link_to_the_Past_SNES_Game_Cover.jpg' },
+  { id:'g6', trait:'Sonic the Hedgehog', finalTitle:'Sixteen-Bit Composition V', era:'16-bit', year:1991, grid:[2,8],
+    palette:['#0070D8','#80E040','#208828','#88E0F0','#F8C040','#E83020','#F8E098','#D8A058'],
+    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/b/ba/Sonic_the_Hedgehog_1_Genesis_box_art.jpg/250px-Sonic_the_Hedgehog_1_Genesis_box_art.jpg' },
+  { id:'g7', trait:'Street Fighter II', finalTitle:'Sixteen-Bit Composition IV', era:'16-bit', year:1991, grid:[2,8],
+    palette:['#3060C0','#F8F8F8','#E83820','#F0B070','#F8C800','#48B848','#683018','#00C8E8'],
+    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/0/04/Street_Fighter_II_arcade_flyer.jpg/250px-Street_Fighter_II_arcade_flyer.jpg' },
+  { id:'g8', trait:'Mortal Kombat', finalTitle:'Sixteen-Bit Composition VII', era:'16-bit', year:1992, grid:[2,8],
+    palette:['#181820','#F8C830','#3070D8','#C82020','#D8A878','#48B048','#806848','#787878'],
+    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Mortal_Kombat_cover.jpg/250px-Mortal_Kombat_cover.jpg' },
+  { id:'g9', trait:'Final Fantasy VII', finalTitle:'Thirty-Two-Bit Tableau VII', era:'32-bit', year:1997, grid:[4,8],
+    palette:['#1C1828','#3878D8','#F8E040','#88E0C0','#F8B8C8','#A02828','#785828','#D8D0B8'],
+    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/c/c2/Final_Fantasy_VII_Box_Art.jpg/250px-Final_Fantasy_VII_Box_Art.jpg' },
+  { id:'g10', trait:'Crash Bandicoot', finalTitle:'Thirty-Two-Bit Tableau II', era:'32-bit', year:1996, grid:[4,8],
+    palette:['#F88830','#3878D8','#FCFCFC','#88C848','#206020','#F8C840','#A85820','#88C8E8'],
+    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/9/91/Crash_Bandicoot_Cover.png/250px-Crash_Bandicoot_Cover.png' },
+  { id:'g11', trait:'Tomb Raider', finalTitle:'Thirty-Two-Bit Tableau VI', era:'32-bit', year:1996, grid:[4,8],
+    palette:['#A88858','#604830','#48A030','#D8A878','#503020','#383838','#2868A0','#F8C040'],
+    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/7/7e/Tomb_Raider_%281996_video_game%29_cover.png/250px-Tomb_Raider_%281996_video_game%29_cover.png' },
+  { id:'g12', trait:'Metal Gear Solid', finalTitle:'Thirty-Two-Bit Tableau IV', era:'32-bit', year:1998, grid:[4,8],
+    palette:['#1C2018','#383838','#8A988A','#D8C8A8','#F8E040','#E8E8F0','#C82020','#205870'],
+    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/e/e4/Metal_Gear_Solid_cover_art.png/250px-Metal_Gear_Solid_cover_art.png' },
+];
+
+const MINT_PRICE = 0.05;
+const POOL_TOTAL = 64;
+
+/* arrangement */
+function seededRand(seed) {
+  let s = seed >>> 0;
+  return function() { s = (s*1664525 + 1013904223) >>> 0; return s/4294967296; };
+}
+function arrange(palette, rows, cols, seed) {
+  const total = rows*cols, dup = total/palette.length;
+  const pool = [];
+  for (let i=0; i<dup; i++) pool.push(...palette);
+  const r = seededRand(seed);
+  for (let i=pool.length-1; i>0; i--) {
+    const j = Math.floor(r()*(i+1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool;
+}
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const state = {
+  tier: 'whale',
+  totalRolls: 5,
+  rollsUsed: 0,
+  rolls: [],        // each: {game, locked: bool}
+  activeRollIdx: null,
+  poolRemaining: POOL_TOTAL,
+  stagePhase: 'idle', // idle | rolling | revealed | review
+  usedGameIds: new Set(),
+};
+
+/* ============================================================
+   RENDER ENTRY POINTS
+   ============================================================ */
+const $stage = document.getElementById('stageContent');
+const $tray  = document.getElementById('traySlots');
+const $commit = document.getElementById('commitBar');
+
+function renderHud() {
+  document.getElementById('hudRolls').textContent = state.totalRolls - state.rollsUsed;
+  document.getElementById('hudPool').textContent = state.poolRemaining;
+  const locked = state.rolls.filter(r => r.locked).length;
+  document.getElementById('hudLocked').textContent = locked;
+}
+
+/* ============================================================
+   STAGE — three states
+   ============================================================ */
+function renderStageIdle() {
+  state.stagePhase = 'idle';
+  const rollsLeft = state.totalRolls - state.rollsUsed;
+  const isFirst = state.rollsUsed === 0;
+  const allUsed = rollsLeft === 0;
+
+  if (allUsed) {
+    // review state — all rolls used, prompt mint
+    $stage.innerHTML = `
+      <div class="idle-screen">
+        <div class="idle-attract">▼ ALL ROLLS USED ▼</div>
+        <div class="idle-rolls-info">
+          REVIEW YOUR <span class="big">${state.rolls.length}</span> ROLLS BELOW
+        </div>
+        <p class="idle-info-line">
+          Toggle <span class="hl">LOCK</span> on any roll you want to mint.
+          When ready, hit <span class="hl">MINT ALL LOCKED</span>.
+        </p>
+      </div>`;
+    return;
+  }
+
+  $stage.innerHTML = `
+    <div class="idle-screen">
+      <div class="idle-attract">▼ ${isFirst ? 'INSERT COIN TO BEGIN' : 'READY FOR NEXT ROLL'} ▼</div>
+      <button class="insert-coin-btn" onclick="startRoll()">${isFirst ? 'CONNECT &amp; PLAY ►' : 'ROLL AGAIN ►'}</button>
+      <div class="idle-rolls-info">
+        <span class="big">${rollsLeft}</span> ROLLS REMAINING
+      </div>
+      <p class="idle-info-line">
+        Each roll reveals a random work from the pool. <span class="hl">8-bit · 16-bit · 32-bit</span> all flat-priced at
+        <span class="hl">0.05 ETH</span>. Bigger era = bigger painting = size lottery win.
+      </p>
+    </div>`;
+}
+
+async function startRoll() {
+  if (state.totalRolls - state.rollsUsed <= 0) return;
+  state.stagePhase = 'rolling';
+
+  // pick random unrolled game
+  const available = POOL.filter(g => !state.usedGameIds.has(g.id));
+  if (available.length === 0) { showToast('★ NO GAMES LEFT IN POOL ★'); return; }
+  const picked = available[Math.floor(Math.random() * available.length)];
+  state.usedGameIds.add(picked.id);
+  state.poolRemaining = POOL_TOTAL - state.usedGameIds.size - (POOL_TOTAL - POOL.length);
+  // (note: real pool is 64, our demo POOL is 12, so fudge the display)
+  state.poolRemaining = Math.max(0, POOL_TOTAL - state.usedGameIds.size);
+
+  await renderStageRolling(picked);
+  await renderStageRevealed(picked);
+
+  // record roll
+  state.rolls.push({ game: picked, locked: true, seed: Math.floor(Math.random()*1e6) });
+  state.activeRollIdx = state.rolls.length - 1;
+  state.rollsUsed++;
+  renderHud();
+  renderTray();
+  updateCommitBar();
+}
+
+/* rolling animation */
+function renderStageRolling(targetGame) {
+  return new Promise((resolve) => {
+    $stage.innerHTML = `
+      <div class="rolling-screen">
+        <div class="vrf-log" id="vrfLog"></div>
+        <div class="era-slots">
+          <div class="era-slot spinning" id="slot1"><div class="reel"><span class="era-8">8-BIT</span><span class="era-16">16-BIT</span><span class="era-32">32-BIT</span></div></div>
+          <div class="era-slot spinning" id="slot2"><div class="reel"><span class="era-8">8-BIT</span><span class="era-16">16-BIT</span><span class="era-32">32-BIT</span></div></div>
+          <div class="era-slot spinning" id="slot3"><div class="reel"><span class="era-8">8-BIT</span><span class="era-16">16-BIT</span><span class="era-32">32-BIT</span></div></div>
+        </div>
+      </div>
+    `;
+
+    // VRF type-out
+    const $log = document.getElementById('vrfLog');
+    const lines = [
+      'REQUEST CHAINLINK VRF...',
+      'VERIFYING POOL STATE...',
+      'COMMITMENT: 0x' + randomHex(40),
+      'ENTROPY ACQUIRED · ROLLING...',
+    ];
+    typewriteLines($log, lines, 18);
+
+    // land slots one by one
+    const eraClass = 'era-' + targetGame.era.split('-')[0];
+    setTimeout(() => landSlot('slot1', eraClass, targetGame.era), 1500);
+    setTimeout(() => landSlot('slot2', eraClass, targetGame.era), 1800);
+    setTimeout(() => landSlot('slot3', eraClass, targetGame.era), 2100);
+
+    setTimeout(resolve, 2700);
+  });
+}
+
+function landSlot(id, eraClass, eraLabel) {
+  const $slot = document.getElementById(id);
+  if (!$slot) return;
+  $slot.classList.remove('spinning');
+  $slot.classList.add('landed', eraClass);
+  $slot.innerHTML = `<span>${eraLabel.toUpperCase()}</span>`;
+}
+
+function randomHex(n) {
+  const c = '0123456789abcdef';
+  let s = '';
+  for (let i=0; i<n; i++) s += c[Math.floor(Math.random()*16)];
+  return s;
+}
+
+function typewriteLines($el, lines, delayPerChar) {
+  let i = 0;
+  function nextLine() {
+    if (i >= lines.length) return;
+    const $p = document.createElement('div');
+    $p.className = 'prompt';
+    if (lines[i].includes('0x')) {
+      const parts = lines[i].split('0x');
+      $p.innerHTML = parts[0] + '<span class="hex">0x' + parts[1] + '</span>';
+    } else {
+      $p.textContent = lines[i];
+    }
+    $el.appendChild($p);
+    i++;
+    setTimeout(nextLine, 400);
+  }
+  nextLine();
+}
+
+/* revealed state */
+function renderStageRevealed(game) {
+  return new Promise((resolve) => {
+    state.stagePhase = 'revealed';
+    const eraClass = 'era-' + game.era.split('-')[0];
+    const [rows, cols] = game.grid;
+    const totalCells = rows * cols;
+    const seed = Math.floor(Math.random()*1e6);
+    const cells = arrange(game.palette, rows, cols, seed);
+
+    const sizeTag = game.era === '32-bit'
+      ? '<span class="era-size-tag lottery">★ SIZE LOTTERY · 4× BIGGER ★</span>'
+      : game.era === '16-bit'
+      ? '<span class="era-size-tag lottery">★ SIZE LOTTERY · 2× BIGGER ★</span>'
+      : '<span class="era-size-tag">STANDARD SIZE</span>';
+
+    $stage.innerHTML = `
+      <div class="revealed-screen">
+        <div class="painting-side">
+          <div class="era-banner-row">
+            <div class="era-banner ${eraClass}">${game.era.toUpperCase()}</div>
+            ${sizeTag}
+          </div>
+          <div class="reveal-grid-wrap">
+            <div class="pixel-grid ${eraClass}" id="revealGrid">
+              ${cells.map(() => '<span class="pixel"></span>').join('')}
+            </div>
+          </div>
+        </div>
+        <div class="info-side">
+          <div class="game-trait">★ ${game.trait.toUpperCase()} ★</div>
+          <div class="game-final-title">${game.finalTitle}</div>
+          <div class="game-year">${game.era.toUpperCase()} · ${game.year}</div>
+          <div class="screenshot-frame">
+            <img src="${game.screenshot}" alt="${game.trait}" onerror="this.style.display='none'; this.parentElement.querySelector('.screenshot-caption').textContent='SCREENSHOT UNAVAILABLE'; this.parentElement.style.background='#1a0033';" />
+          </div>
+          <div class="screenshot-caption">SOURCE GAME · ${game.year}</div>
+          <div class="reveal-actions">
+            <button class="coin-btn lock locked" onclick="toggleRollLockFromStage()" id="lockBtn">✓ LOCKED IN</button>
+            <button class="coin-btn ghost" onclick="startRoll()" id="rollAgainBtn">ROLL AGAIN ►</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // pixel-by-pixel sprite load — random order
+    const $pixels = $stage.querySelectorAll('.pixel');
+    const indices = Array.from({length: totalCells}, (_, i) => i).sort(() => Math.random() - 0.5);
+    indices.forEach((idx, order) => {
+      setTimeout(() => {
+        if ($pixels[idx]) {
+          $pixels[idx].style.background = cells[idx];
+          $pixels[idx].classList.add('lit');
+        }
+      }, 80 + order * 28);
+    });
+
+    // disable roll-again if no rolls left after this one
+    setTimeout(() => {
+      const rollsLeftAfter = state.totalRolls - (state.rollsUsed + 1);
+      if (rollsLeftAfter <= 0) {
+        const $r = document.getElementById('rollAgainBtn');
+        if ($r) {
+          $r.textContent = 'NO ROLLS LEFT';
+          $r.disabled = true;
+        }
+      }
+    }, 100);
+
+    setTimeout(resolve, 2400);
+  });
+}
+
+function toggleRollLockFromStage() {
+  if (state.activeRollIdx === null) return;
+  state.rolls[state.activeRollIdx].locked = !state.rolls[state.activeRollIdx].locked;
+  const r = state.rolls[state.activeRollIdx];
+  const $btn = document.getElementById('lockBtn');
+  if ($btn) {
+    if (r.locked) {
+      $btn.textContent = '✓ LOCKED IN';
+      $btn.classList.add('locked');
+    } else {
+      $btn.textContent = 'LOCK IT IN ►';
+      $btn.classList.remove('locked');
+    }
+  }
+  renderHud();
+  renderTray();
+  updateCommitBar();
+}
+
+/* ============================================================
+   TRAY
+   ============================================================ */
+function renderTray() {
+  $tray.innerHTML = '';
+  for (let i = 0; i < state.totalRolls; i++) {
+    if (i < state.rolls.length) {
+      const r = state.rolls[i];
+      const eraClass = 'era-' + r.game.era.split('-')[0];
+      const [rows, cols] = r.game.grid;
+      const cells = arrange(r.game.palette, rows, cols, r.seed);
+
+      const slot = document.createElement('div');
+      slot.className = 'tray-slot filled' + (r.locked ? ' locked' : '') + (state.activeRollIdx === i ? ' active' : '');
+      slot.innerHTML = `
+        <div class="tray-era-tag ${eraClass}">${r.game.era.toUpperCase()}</div>
+        <div class="tray-thumb pixel-grid ${eraClass}">
+          ${cells.map(c => `<span class="thumb-pixel" style="background:${c}"></span>`).join('')}
+        </div>
+        <div class="tray-slot-meta">
+          <div class="tray-slot-title">${r.game.trait.toUpperCase()}</div>
+          <div class="tray-slot-status">${r.locked ? '● LOCKED' : '○ HELD'}</div>
+        </div>
+      `;
+      slot.addEventListener('click', () => toggleRollLockFromTray(i));
+      $tray.appendChild(slot);
+    } else {
+      const isNext = (i === state.rolls.length) && (state.stagePhase === 'idle' || state.stagePhase === 'revealed');
+      const slot = document.createElement('div');
+      slot.className = 'tray-slot empty' + (isNext ? ' next' : '');
+      slot.innerHTML = `<div class="empty-num">${isNext ? '▶ NEXT ROLL' : 'ROLL ' + (i + 1)}</div>`;
+      $tray.appendChild(slot);
+    }
+  }
+}
+
+function toggleRollLockFromTray(idx) {
+  state.rolls[idx].locked = !state.rolls[idx].locked;
+  // if this is the active roll, also update the stage button
+  if (state.activeRollIdx === idx) {
+    const $btn = document.getElementById('lockBtn');
+    if ($btn) {
+      const r = state.rolls[idx];
+      if (r.locked) { $btn.textContent = '✓ LOCKED IN'; $btn.classList.add('locked'); }
+      else { $btn.textContent = 'LOCK IT IN ►'; $btn.classList.remove('locked'); }
+    }
+  }
+  renderHud();
+  renderTray();
+  updateCommitBar();
+}
+
+/* ============================================================
+   COMMIT BAR
+   ============================================================ */
+function updateCommitBar() {
+  const locked = state.rolls.filter(r => r.locked);
+  const count = locked.length;
+  const price = (count * MINT_PRICE).toFixed(2);
+
+  document.getElementById('commitCount').textContent = count;
+  document.getElementById('commitPrice').textContent = price + ' ETH';
+  document.getElementById('commitS').style.display = count === 1 ? 'none' : 'inline';
+
+  const allRollsUsed = state.rollsUsed >= state.totalRolls;
+  const hasLocked = count > 0;
+
+  if (allRollsUsed && hasLocked) {
+    $commit.classList.add('active');
+  } else if (state.rolls.length > 0 && hasLocked) {
+    // also show commit bar early so users see the running total
+    $commit.classList.add('active');
+  } else {
+    $commit.classList.remove('active');
+  }
+
+  document.getElementById('mintBtn').disabled = !hasLocked;
+}
+
+document.getElementById('mintBtn').addEventListener('click', () => {
+  const locked = state.rolls.filter(r => r.locked);
+  if (locked.length === 0) return;
+
+  document.getElementById('successCount').textContent = locked.length;
+  document.getElementById('successS').style.display = locked.length === 1 ? 'none' : 'inline';
+  document.getElementById('successHash').textContent = '0x' + randomHex(12) + '...';
+  document.getElementById('successOverlay').classList.add('show');
+});
+
+function showToast(msg) {
+  const $t = document.getElementById('toast');
+  $t.textContent = msg;
+  $t.classList.add('show');
+  setTimeout(() => $t.classList.remove('show'), 3000);
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+renderHud();
+renderStageIdle();
+renderTray();
+updateCommitBar();
+</script>
+</body>
+</html>
