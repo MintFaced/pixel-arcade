@@ -237,6 +237,47 @@
   .pixel-grid.era-8  { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); --ar: 2 / 1; }
   .pixel-grid.era-16 { grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(2, 1fr); --ar: 4 / 1; }
   .pixel-grid.era-32 { grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(4, 1fr); --ar: 2 / 1; }
+
+  /* SVG artwork — for real minted works, loaded from /svg/NNN.svg */
+  .work-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 2px solid #000;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  .work-svg.era-8  { aspect-ratio: 2 / 1; }
+  .work-svg.era-16 { aspect-ratio: 4 / 1; }
+  .work-svg.era-32 { aspect-ratio: 2 / 1; }
+
+  /* Inline-rendered wildpixel after collector completes it locally */
+  .work-svg-inline {
+    display: block;
+    width: 100%;
+    border: 2px solid #000;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    line-height: 0;
+  }
+  .work-svg-inline svg { display: block; width: 100%; height: auto; }
+  .work-svg-inline.era-8  { aspect-ratio: 2 / 1; }
+  .work-svg-inline.era-16 { aspect-ratio: 4 / 1; }
+  .work-svg-inline.era-32 { aspect-ratio: 2 / 1; }
+
+  /* SVG thumbnail in the drawer cart row */
+  .drawer-thumb-svg {
+    display: block;
+    width: 88px;
+    height: auto;
+    border: 2px solid var(--neon-cyan);
+    box-shadow: 0 0 8px var(--neon-cyan);
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  .drawer-thumb-svg.era-8  { aspect-ratio: 2 / 1; }
+  .drawer-thumb-svg.era-16 { aspect-ratio: 4 / 1; width: 120px; }
+  .drawer-thumb-svg.era-32 { aspect-ratio: 2 / 1; }
   .pixel { display: block; aspect-ratio: 1 / 1; }
   .work:hover .pixel-grid { animation: rgbGlitch 0.4s steps(3) infinite; }
   @keyframes rgbGlitch {
@@ -728,24 +769,24 @@
 
 <script>
 const WORKS = [
-  { id:'w1', trait:'Pac-Man', finalTitle:'Eight-Bit Study No. 8', era:'8-bit', year:1980, grid:[2,4],
-    palette:['#000000','#2121DE','#FFFF00','#FF0000','#FFB8FF','#00FFFF','#FFB851','#DEBA87'],
+  { id:'w1', tokenId:8,  trait:'Pac-Man', finalTitle:'Eight-Bit Study No. 8', era:'8-bit', year:1980, grid:[2,4],
     status:'minted', physical:false, wildpixel:false },
-  { id:'w2', trait:'Frogger', finalTitle:'Eight-Bit Study No. 7', era:'8-bit', year:1981, grid:[2,4],
-    palette:['#000000','#00A800','#54FC54','#0058F8','#A85400','#FC9838','#F83800','#FCFC00'],
+  { id:'w2', tokenId:7,  trait:'Frogger', finalTitle:'Eight-Bit Study No. 7', era:'8-bit', year:1981, grid:[2,4],
     status:'minted', physical:true, wildpixel:false },
-  { id:'w3', trait:'Zelda: A Link to the Past', finalTitle:'Sixteen-Bit Composition VIII', era:'16-bit', year:1991, grid:[2,8],
-    palette:['#48A030','#286818','#F8E098','#3070C8','#88C8E8','#E0A058','#A03020','#988878'],
+  { id:'w3', tokenId:25, trait:'Zelda: A Link to the Past', finalTitle:'Sixteen-Bit Composition VIII', era:'16-bit', year:1991, grid:[2,8],
     status:'minted', physical:false, wildpixel:false },
-  { id:'w4', trait:'Sonic the Hedgehog', finalTitle:'Sixteen-Bit Composition V', era:'16-bit', year:1991, grid:[2,8],
-    palette:['#0070D8','#80E040','#208828','#88E0F0','#F8C040','#E83020','#F8E098','#D8A058'],
+  { id:'w4', tokenId:22, trait:'Sonic the Hedgehog', finalTitle:'Sixteen-Bit Composition V', era:'16-bit', year:1991, grid:[2,8],
     status:'minted', physical:true, wildpixel:false },
-  { id:'w5', trait:'Final Fantasy VII', finalTitle:'Thirty-Two-Bit Tableau VII', era:'32-bit', year:1997, grid:[4,8],
-    palette:['#1C1828','#3878D8','#F8E040','#88E0C0','#F8B8C8','#A02828','#785828','#D8D0B8'],
+  { id:'w5', tokenId:52, trait:'Final Fantasy VII', finalTitle:'Thirty-Two-Bit Tableau VII', era:'32-bit', year:1997, grid:[4,8],
     status:'minted', physical:false, wildpixel:false },
-  { id:'w6', trait:null, finalTitle:'Sixteen-Bit Composition XII', era:'16-bit', year:null, grid:[2,8],
-    palette:null, status:'awaiting-palette', physical:false, wildpixel:true },
+  { id:'w6', tokenId:12, trait:null, finalTitle:'Eight-Bit Study No. 12', era:'8-bit', year:null, grid:[2,4],
+    status:'awaiting-palette', physical:false, wildpixel:true },
 ];
+
+// Format token ID as 3-digit string for filename lookup
+function svgPath(tokenId) {
+  return '/svg/' + String(tokenId).padStart(3, '0') + '.svg';
+}
 
 const PRICES = {
   '8-bit':  { painting:0.25, shipping:0.25 },
@@ -771,6 +812,64 @@ function arrange(palette, rows, cols, seed) {
   return pool;
 }
 
+// Build an inline animated SVG from a pixel arrangement.
+// Used for wildpixel previews — looks identical to the production-generated SVGs.
+function buildInlineSvg(cells, rows, cols) {
+  const PX = 200;
+  const w = cols * PX, h = rows * PX;
+  let rectsPrimary = '', rectsGhost = '';
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const idx = r * cols + c;
+      const x = c * PX, y = r * PX;
+      const fill = cells[idx];
+      rectsPrimary += `<rect class="px" x="${x}" y="${y}" width="${PX}" height="${PX}" fill="${fill}"/>`;
+      rectsGhost   += `<rect x="${x}" y="${y}" width="${PX}" height="${PX}" fill="${fill}"/>`;
+    }
+  }
+  // Phase buckets — match the production generator: 8 for 8-bit, 10 for 16-bit, 12 for 32-bit
+  const buckets = cols === 4 ? 8 : (rows === 2 ? 10 : 12);
+  const phases = {
+    8:  [[0,0.9],[0.12,0.85],[0.25,0.95],[0.38,0.8],[0.05,1.0],[0.30,0.88],[0.18,0.92],[0.42,0.86]],
+    10: [[0,0.9],[0.10,0.85],[0.22,0.95],[0.34,0.8],[0.05,1.0],[0.28,0.88],[0.16,0.92],[0.40,0.86],[0.08,0.94],[0.32,0.82]],
+    12: [[0,0.9],[0.08,0.85],[0.16,0.95],[0.24,0.8],[0.04,1.0],[0.28,0.88],[0.14,0.92],[0.36,0.86],[0.06,0.94],[0.32,0.82],[0.20,0.98],[0.40,0.84]],
+  }[buckets];
+  let phaseCSS = '';
+  for (let i = 0; i < buckets; i++) {
+    const [d, dur] = phases[i];
+    phaseCSS += `.px:nth-child(${buckets}n+${i}){animation-delay:${d}s;animation-duration:${dur}s;}`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
+<defs>
+  <pattern id="sp" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+    <rect x="0" y="0" width="4" height="2" fill="rgba(0,0,0,0)"/>
+    <rect x="0" y="2" width="4" height="2" fill="rgba(0,0,0,0.45)"/>
+  </pattern>
+  <radialGradient id="vg" cx="50%" cy="50%" r="70%">
+    <stop offset="60%" stop-color="rgb(0,0,0)" stop-opacity="0"/>
+    <stop offset="100%" stop-color="rgb(0,0,0)" stop-opacity="0.45"/>
+  </radialGradient>
+</defs>
+<style>
+.px{transform-box:fill-box;transform-origin:center;animation:tw .9s steps(2) infinite;}
+@keyframes tw{0%,100%{transform:scale(1);filter:brightness(1);}50%{transform:scale(1.015);filter:brightness(1.12);}}
+${phaseCSS}
+.gc{mix-blend-mode:screen;opacity:.45;animation:gc .5s steps(3) infinite;}
+.gr{mix-blend-mode:screen;opacity:.4;animation:gr .5s steps(3) infinite;}
+@keyframes gc{0%,100%{transform:translate(0,0);}33%{transform:translate(-3px,0);}66%{transform:translate(1px,0);}}
+@keyframes gr{0%,100%{transform:translate(0,0);}33%{transform:translate(3px,0);}66%{transform:translate(-1px,0);}}
+.sl{pointer-events:none;mix-blend-mode:multiply;animation:sc 8s linear infinite;}
+@keyframes sc{from{transform:translateY(0);}to{transform:translateY(8px);}}
+</style>
+<rect width="${w}" height="${h}" fill="#080210"/>
+<g class="gc">${rectsGhost}</g>
+<g class="gr">${rectsGhost}</g>
+<g>${rectsPrimary}</g>
+<g class="sl"><rect x="0" y="-8" width="${w}" height="${h+16}" fill="url(#sp)"/></g>
+<rect width="${w}" height="${h}" fill="url(#vg)" pointer-events="none"/>
+</svg>`;
+}
+
 const state = {
   filter:'all',
   selected:new Set(),
@@ -790,12 +889,14 @@ function renderWork(work) {
 
   let gridHTML;
   if (isWildpixelEmpty) {
-    gridHTML = `<div class="pixel-grid ${eraClass}"><div class="wildpixel-prompt"><span class="big">★ INSERT GAME ★</span>TAP TO UPLOAD<br />YOUR FAVORITE ARCADE<br />GAME OR PFP</div></div>`;
+    // Wildpixel awaiting completion — uses placeholder SVG from /svg/.
+    gridHTML = `<img class="work-svg ${eraClass}" src="${svgPath(work.tokenId)}" alt="Wildpixel · awaiting palette" />`;
+  } else if (work.wildpixel && work.completedCells) {
+    // Wildpixel completed locally in this session — render inline SVG with the chosen palette.
+    const [rows, cols] = work.grid;
+    gridHTML = `<div class="work-svg-inline ${eraClass}">${buildInlineSvg(work.completedCells, rows, cols)}</div>`;
   } else {
-    const cells = arrange(work.palette, rows, cols, 42);
-    gridHTML = `<div class="pixel-grid ${eraClass}">` +
-      cells.map(c => `<span class="pixel" style="background:${c}"></span>`).join('') +
-    `</div>`;
+    gridHTML = `<img class="work-svg ${eraClass}" src="${svgPath(work.tokenId)}" alt="${work.trait}" />`;
   }
 
   const traitDisplay = work.trait
@@ -897,15 +998,11 @@ function renderDrawer() {
     $body.innerHTML = `<div class="drawer-empty">▼ EMPTY ▼<br /><br /><span class="blink">INSERT WORK TO CONTINUE</span></div>`;
   } else {
     $body.innerHTML = selected.map(w => {
-      const [r, c] = w.grid;
-      const cells = arrange(w.palette, r, c, 42);
       const eraClass = 'era-' + w.era.split('-')[0];
       const price = PRICES[w.era].painting;
       return `
         <div class="drawer-item">
-          <div class="drawer-thumb pixel-grid ${eraClass}">
-            ${cells.map(c => `<span class="pixel" style="background:${c}"></span>`).join('')}
-          </div>
+          <img class="drawer-thumb-svg ${eraClass}" src="${svgPath(w.tokenId)}" alt="${w.trait}" />
           <div class="drawer-meta">
             <div class="t1">${w.trait.toUpperCase()}</div>
             <div class="t2">${w.finalTitle}</div>
@@ -1024,7 +1121,10 @@ document.getElementById('nextBtn').addEventListener('click', () => {
   else if (s === 3) { state.wildpixel.step = 4; renderWildpixelStep(); renderFinalPanel(); }
   else if (s === 4) {
     const work = WORKS.find(w => w.id === state.wildpixel.workId);
-    work.palette = state.wildpixel.extracted.colors;
+    // Compute the final arrangement once and freeze it onto the work object,
+    // so renderWork can display it inline (prototype only; production stores on-chain).
+    const [r, c] = work.grid;
+    work.completedCells = arrange(state.wildpixel.extracted.colors, r, c, state.wildpixel.arrangementSeed);
     work.trait = state.wildpixel.trait.trim();
     work.status = 'minted';
     closeWildpixelModal();
@@ -1059,11 +1159,10 @@ function renderExtractionPanel() {
 function renderArrangementPanel() {
   const work = WORKS.find(w => w.id === state.wildpixel.workId);
   const [r, c] = work.grid;
-  const eraClass = 'era-' + work.era.split('-')[0];
   const cells = arrange(state.wildpixel.extracted.colors, r, c, state.wildpixel.arrangementSeed);
   const $g = document.getElementById('arrangementGrid');
-  $g.className = 'pixel-grid ' + eraClass;
-  $g.innerHTML = cells.map(x => `<span class="pixel" style="background:${x}"></span>`).join('');
+  // Replace the container with an inline animated SVG
+  $g.outerHTML = `<div class="pixel-grid era-${work.era.split('-')[0]}" id="arrangementGrid">${buildInlineSvg(cells, r, c)}</div>`;
   document.getElementById('rerollCount').textContent = state.wildpixel.rerollsLeft;
 
   const $info = document.querySelector('[data-panel="3"] .reroll-info');
@@ -1089,11 +1188,9 @@ function renderArrangementPanel() {
 function renderFinalPanel() {
   const work = WORKS.find(w => w.id === state.wildpixel.workId);
   const [r, c] = work.grid;
-  const eraClass = 'era-' + work.era.split('-')[0];
   const cells = arrange(state.wildpixel.extracted.colors, r, c, state.wildpixel.arrangementSeed);
   const $g = document.getElementById('finalGrid');
-  $g.className = 'pixel-grid ' + eraClass;
-  $g.innerHTML = cells.map(x => `<span class="pixel" style="background:${x}"></span>`).join('');
+  $g.outerHTML = `<div class="pixel-grid era-${work.era.split('-')[0]}" id="finalGrid">${buildInlineSvg(cells, r, c)}</div>`;
   document.getElementById('traitInput').value = state.wildpixel.trait;
 }
 

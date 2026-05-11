@@ -412,6 +412,25 @@
   }
   .pixel.lit { transform: scale(1); }
 
+  /* Real animated SVG that replaces the sprite-load build after completion */
+  .reveal-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 2px solid #000;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    animation: revealSvgIn 0.3s steps(4) forwards;
+  }
+  .reveal-svg.era-8  { aspect-ratio: 2 / 1; }
+  .reveal-svg.era-16 { aspect-ratio: 4 / 1; }
+  .reveal-svg.era-32 { aspect-ratio: 2 / 1; }
+  @keyframes revealSvgIn {
+    0%   { opacity: 0.6; filter: brightness(1.4); }
+    50%  { opacity: 1; filter: brightness(1.2); }
+    100% { opacity: 1; filter: brightness(1); }
+  }
+
   /* game name + screenshot side */
   .game-trait {
     font-family: var(--font-display);
@@ -630,6 +649,20 @@
     image-rendering: pixelated;
   }
   .tray-slot .thumb-pixel { display: block; aspect-ratio: 1 / 1; }
+
+  /* Real animated SVG thumbnail in tray slots */
+  .tray-thumb-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 2px solid #000;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  .tray-thumb-svg.era-8  { aspect-ratio: 2 / 1; }
+  .tray-thumb-svg.era-16 { aspect-ratio: 4 / 1; }
+  .tray-thumb-svg.era-32 { aspect-ratio: 2 / 1; }
+
   .tray-slot-meta {
     display: flex; justify-content: space-between; align-items: center;
     gap: 8px;
@@ -1128,66 +1161,81 @@
 
 <script>
 /* ============================================================
-   POOL — real games with screenshot URLs
-   Screenshots from Wikimedia Commons (CC / fair use thumbnails)
+   POOL — all 64 token IDs from the catalog
+   Artwork SVGs live in /svg/NNN.svg (loaded via <img>)
    ============================================================ */
 const POOL = [
-  { id:'g1', trait:'Pac-Man', finalTitle:'Eight-Bit Study No. 8', era:'8-bit', year:1980, grid:[2,4],
-    palette:['#000000','#2121DE','#FFFF00','#FF0000','#FFB8FF','#00FFFF','#FFB851','#DEBA87'],
-    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/5/59/Pac-man.png/250px-Pac-man.png' },
-  { id:'g2', trait:'Frogger', finalTitle:'Eight-Bit Study No. 7', era:'8-bit', year:1981, grid:[2,4],
-    palette:['#000000','#00A800','#54FC54','#0058F8','#A85400','#FC9838','#F83800','#FCFC00'],
-    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/9/99/Frogger.png/250px-Frogger.png' },
-  { id:'g3', trait:'Galaga', finalTitle:'Eight-Bit Study No. 11', era:'8-bit', year:1981, grid:[2,4],
-    palette:['#000000','#FFFFFF','#FF0000','#FFCC00','#00C8FF','#FF6800','#A800A8','#888888'],
-    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/2/22/Galaga.png/250px-Galaga.png' },
-  { id:'g4', trait:'Mario Bros.', finalTitle:'Eight-Bit Study No. 6', era:'8-bit', year:1983, grid:[2,4],
-    palette:['#000000','#0058F8','#F83800','#FCFCFC','#A85400','#FCBC54','#54FC54','#FCFC00'],
-    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/9/9c/Mario_Bros._Arcade.png/250px-Mario_Bros._Arcade.png' },
-  { id:'g5', trait:'Zelda: A Link to the Past', finalTitle:'Sixteen-Bit Composition VIII', era:'16-bit', year:1991, grid:[2,8],
-    palette:['#48A030','#286818','#F8E098','#3070C8','#88C8E8','#E0A058','#A03020','#988878'],
-    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/2/21/The_Legend_of_Zelda_A_Link_to_the_Past_SNES_Game_Cover.jpg/250px-The_Legend_of_Zelda_A_Link_to_the_Past_SNES_Game_Cover.jpg' },
-  { id:'g6', trait:'Sonic the Hedgehog', finalTitle:'Sixteen-Bit Composition V', era:'16-bit', year:1991, grid:[2,8],
-    palette:['#0070D8','#80E040','#208828','#88E0F0','#F8C040','#E83020','#F8E098','#D8A058'],
-    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/b/ba/Sonic_the_Hedgehog_1_Genesis_box_art.jpg/250px-Sonic_the_Hedgehog_1_Genesis_box_art.jpg' },
-  { id:'g7', trait:'Street Fighter II', finalTitle:'Sixteen-Bit Composition IV', era:'16-bit', year:1991, grid:[2,8],
-    palette:['#3060C0','#F8F8F8','#E83820','#F0B070','#F8C800','#48B848','#683018','#00C8E8'],
-    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/0/04/Street_Fighter_II_arcade_flyer.jpg/250px-Street_Fighter_II_arcade_flyer.jpg' },
-  { id:'g8', trait:'Mortal Kombat', finalTitle:'Sixteen-Bit Composition VII', era:'16-bit', year:1992, grid:[2,8],
-    palette:['#181820','#F8C830','#3070D8','#C82020','#D8A878','#48B048','#806848','#787878'],
-    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Mortal_Kombat_cover.jpg/250px-Mortal_Kombat_cover.jpg' },
-  { id:'g9', trait:'Final Fantasy VII', finalTitle:'Thirty-Two-Bit Tableau VII', era:'32-bit', year:1997, grid:[4,8],
-    palette:['#1C1828','#3878D8','#F8E040','#88E0C0','#F8B8C8','#A02828','#785828','#D8D0B8'],
-    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/c/c2/Final_Fantasy_VII_Box_Art.jpg/250px-Final_Fantasy_VII_Box_Art.jpg' },
-  { id:'g10', trait:'Crash Bandicoot', finalTitle:'Thirty-Two-Bit Tableau II', era:'32-bit', year:1996, grid:[4,8],
-    palette:['#F88830','#3878D8','#FCFCFC','#88C848','#206020','#F8C840','#A85820','#88C8E8'],
-    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/9/91/Crash_Bandicoot_Cover.png/250px-Crash_Bandicoot_Cover.png' },
-  { id:'g11', trait:'Tomb Raider', finalTitle:'Thirty-Two-Bit Tableau VI', era:'32-bit', year:1996, grid:[4,8],
-    palette:['#A88858','#604830','#48A030','#D8A878','#503020','#383838','#2868A0','#F8C040'],
-    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/7/7e/Tomb_Raider_%281996_video_game%29_cover.png/250px-Tomb_Raider_%281996_video_game%29_cover.png' },
-  { id:'g12', trait:'Metal Gear Solid', finalTitle:'Thirty-Two-Bit Tableau IV', era:'32-bit', year:1998, grid:[4,8],
-    palette:['#1C2018','#383838','#8A988A','#D8C8A8','#F8E040','#E8E8F0','#C82020','#205870'],
-    screenshot:'https://upload.wikimedia.org/wikipedia/en/thumb/e/e4/Metal_Gear_Solid_cover_art.png/250px-Metal_Gear_Solid_cover_art.png' },
+  { id:'g1', tokenId:1, trait:"Pitfall!", finalTitle:"Eight-Bit Study No. 1", era:'8-bit', year:1982, grid:[2,4] },
+  { id:'g2', tokenId:2, trait:"Lunar Lander", finalTitle:"Eight-Bit Study No. 2", era:'8-bit', year:1979, grid:[2,4] },
+  { id:'g3', tokenId:3, trait:"Breakout", finalTitle:"Eight-Bit Study No. 3", era:'8-bit', year:1976, grid:[2,4] },
+  { id:'g4', tokenId:4, trait:"Missile Command", finalTitle:"Eight-Bit Study No. 4", era:'8-bit', year:1980, grid:[2,4] },
+  { id:'g5', tokenId:5, trait:"Asteroids", finalTitle:"Eight-Bit Study No. 5", era:'8-bit', year:1979, grid:[2,4] },
+  { id:'g6', tokenId:6, trait:"Mario Bros.", finalTitle:"Eight-Bit Study No. 6", era:'8-bit', year:1983, grid:[2,4] },
+  { id:'g7', tokenId:7, trait:"Frogger", finalTitle:"Eight-Bit Study No. 7", era:'8-bit', year:1981, grid:[2,4] },
+  { id:'g8', tokenId:8, trait:"Pac-Man", finalTitle:"Eight-Bit Study No. 8", era:'8-bit', year:1980, grid:[2,4] },
+  { id:'g9', tokenId:9, trait:"Pole Position", finalTitle:"Eight-Bit Study No. 9", era:'8-bit', year:1982, grid:[2,4] },
+  { id:'g10', tokenId:10, trait:"Defender", finalTitle:"Eight-Bit Study No. 10", era:'8-bit', year:1981, grid:[2,4] },
+  { id:'g11', tokenId:11, trait:"Galaga", finalTitle:"Eight-Bit Study No. 11", era:'8-bit', year:1981, grid:[2,4] },
+  { id:'g12', tokenId:12, trait:"Centipede", finalTitle:"Eight-Bit Study No. 12", era:'8-bit', year:1981, grid:[2,4], wildpixel:true },
+  { id:'g13', tokenId:13, trait:"Donkey Kong (arcade)", finalTitle:"Eight-Bit Study No. 13", era:'8-bit', year:1981, grid:[2,4] },
+  { id:'g14', tokenId:14, trait:"Q*bert", finalTitle:"Eight-Bit Study No. 14", era:'8-bit', year:1982, grid:[2,4], wildpixel:true },
+  { id:'g15', tokenId:15, trait:"Joust", finalTitle:"Eight-Bit Study No. 15", era:'8-bit', year:1982, grid:[2,4], wildpixel:true },
+  { id:'g16', tokenId:16, trait:"Dig Dug", finalTitle:"Eight-Bit Study No. 16", era:'8-bit', year:1982, grid:[2,4] },
+  { id:'g17', tokenId:17, trait:"Tron", finalTitle:"Eight-Bit Study No. 17", era:'8-bit', year:1982, grid:[2,4], wildpixel:true },
+  { id:'g18', tokenId:18, trait:"Double Dragon", finalTitle:"Sixteen-Bit Composition I", era:'16-bit', year:1987, grid:[2,8] },
+  { id:'g19', tokenId:19, trait:"Paperboy", finalTitle:"Sixteen-Bit Composition II", era:'16-bit', year:1985, grid:[2,8] },
+  { id:'g20', tokenId:20, trait:"Rampage", finalTitle:"Sixteen-Bit Composition III", era:'16-bit', year:1986, grid:[2,8] },
+  { id:'g21', tokenId:21, trait:"Street Fighter II", finalTitle:"Sixteen-Bit Composition IV", era:'16-bit', year:1991, grid:[2,8] },
+  { id:'g22', tokenId:22, trait:"Sonic the Hedgehog", finalTitle:"Sixteen-Bit Composition V", era:'16-bit', year:1991, grid:[2,8] },
+  { id:'g23', tokenId:23, trait:"Golden Axe", finalTitle:"Sixteen-Bit Composition VI", era:'16-bit', year:1989, grid:[2,8] },
+  { id:'g24', tokenId:24, trait:"Mortal Kombat", finalTitle:"Sixteen-Bit Composition VII", era:'16-bit', year:1992, grid:[2,8] },
+  { id:'g25', tokenId:25, trait:"Zelda: A Link to the Past", finalTitle:"Sixteen-Bit Composition VIII", era:'16-bit', year:1991, grid:[2,8] },
+  { id:'g26', tokenId:26, trait:"Donkey Kong Country", finalTitle:"Sixteen-Bit Composition IX", era:'16-bit', year:1994, grid:[2,8] },
+  { id:'g27', tokenId:27, trait:"Virtua Racing", finalTitle:"Sixteen-Bit Composition X", era:'16-bit', year:1992, grid:[2,8] },
+  { id:'g28', tokenId:28, trait:"Prince of Persia", finalTitle:"Sixteen-Bit Composition XI", era:'16-bit', year:1989, grid:[2,8] },
+  { id:'g29', tokenId:29, trait:"Ghouls 'n Ghosts", finalTitle:"Sixteen-Bit Composition XII", era:'16-bit', year:1988, grid:[2,8] },
+  { id:'g30', tokenId:30, trait:"Moonwalker", finalTitle:"Sixteen-Bit Composition XIII", era:'16-bit', year:1990, grid:[2,8] },
+  { id:'g31', tokenId:31, trait:"Pinball Illusions", finalTitle:"Sixteen-Bit Composition XIV", era:'16-bit', year:1995, grid:[2,8] },
+  { id:'g32', tokenId:32, trait:"Wonder Boy", finalTitle:"Sixteen-Bit Composition XV", era:'16-bit', year:1986, grid:[2,8] },
+  { id:'g33', tokenId:33, trait:"Wings", finalTitle:"Sixteen-Bit Composition XVI", era:'16-bit', year:1990, grid:[2,8] },
+  { id:'g34', tokenId:34, trait:"Indiana Jones & Last Crusade", finalTitle:"Sixteen-Bit Composition XVII", era:'16-bit', year:1989, grid:[2,8] },
+  { id:'g35', tokenId:35, trait:"Secret of Monkey Island", finalTitle:"Sixteen-Bit Composition XVIII", era:'16-bit', year:1990, grid:[2,8] },
+  { id:'g36', tokenId:36, trait:"Wing Commander", finalTitle:"Sixteen-Bit Composition XIX", era:'16-bit', year:1990, grid:[2,8] },
+  { id:'g37', tokenId:37, trait:"Wolfenstein 3D", finalTitle:"Sixteen-Bit Composition XX", era:'16-bit', year:1992, grid:[2,8] },
+  { id:'g38', tokenId:38, trait:"Ultima VII", finalTitle:"Sixteen-Bit Composition XXI", era:'16-bit', year:1992, grid:[2,8] },
+  { id:'g39', tokenId:39, trait:"Doom", finalTitle:"Sixteen-Bit Composition XXII", era:'16-bit', year:1993, grid:[2,8] },
+  { id:'g40', tokenId:40, trait:"SimCity 2000", finalTitle:"Sixteen-Bit Composition XXIII", era:'16-bit', year:1993, grid:[2,8] },
+  { id:'g41', tokenId:41, trait:"Lemmings", finalTitle:"Sixteen-Bit Composition XXIV", era:'16-bit', year:1991, grid:[2,8] },
+  { id:'g42', tokenId:42, trait:"Civilization", finalTitle:"Sixteen-Bit Composition XXV", era:'16-bit', year:1991, grid:[2,8] },
+  { id:'g43', tokenId:43, trait:"X-Wing", finalTitle:"Sixteen-Bit Composition XXVI", era:'16-bit', year:1993, grid:[2,8] },
+  { id:'g44', tokenId:44, trait:"Theme Park", finalTitle:"Sixteen-Bit Composition XXVII", era:'16-bit', year:1994, grid:[2,8] },
+  { id:'g45', tokenId:45, trait:"Dune II", finalTitle:"Sixteen-Bit Composition XXVIII", era:'16-bit', year:1992, grid:[2,8] },
+  { id:'g46', tokenId:46, trait:"Tekken 3", finalTitle:"Thirty-Two-Bit Tableau I", era:'32-bit', year:1997, grid:[4,8] },
+  { id:'g47', tokenId:47, trait:"Crash Bandicoot", finalTitle:"Thirty-Two-Bit Tableau II", era:'32-bit', year:1996, grid:[4,8] },
+  { id:'g48', tokenId:48, trait:"Wipeout", finalTitle:"Thirty-Two-Bit Tableau III", era:'32-bit', year:1995, grid:[4,8] },
+  { id:'g49', tokenId:49, trait:"Metal Gear Solid", finalTitle:"Thirty-Two-Bit Tableau IV", era:'32-bit', year:1998, grid:[4,8] },
+  { id:'g50', tokenId:50, trait:"GoldenEye 007", finalTitle:"Thirty-Two-Bit Tableau V", era:'32-bit', year:1997, grid:[4,8] },
+  { id:'g51', tokenId:51, trait:"Tomb Raider", finalTitle:"Thirty-Two-Bit Tableau VI", era:'32-bit', year:1996, grid:[4,8] },
+  { id:'g52', tokenId:52, trait:"Final Fantasy VII", finalTitle:"Thirty-Two-Bit Tableau VII", era:'32-bit', year:1997, grid:[4,8] },
+  { id:'g53', tokenId:53, trait:"Resident Evil", finalTitle:"Thirty-Two-Bit Tableau VIII", era:'32-bit', year:1996, grid:[4,8] },
+  { id:'g54', tokenId:54, trait:"Super Mario 64", finalTitle:"Thirty-Two-Bit Tableau IX", era:'32-bit', year:1996, grid:[4,8] },
+  { id:'g55', tokenId:55, trait:"Gran Turismo", finalTitle:"Thirty-Two-Bit Tableau X", era:'32-bit', year:1997, grid:[4,8] },
+  { id:'g56', tokenId:56, trait:"Quake", finalTitle:"Thirty-Two-Bit Tableau XI", era:'32-bit', year:1996, grid:[4,8] },
+  { id:'g57', tokenId:57, trait:"Diablo", finalTitle:"Thirty-Two-Bit Tableau XII", era:'32-bit', year:1996, grid:[4,8] },
+  { id:'g58', tokenId:58, trait:"Half-Life", finalTitle:"Thirty-Two-Bit Tableau XIII", era:'32-bit', year:1998, grid:[4,8] },
+  { id:'g59', tokenId:59, trait:"StarCraft", finalTitle:"Thirty-Two-Bit Tableau XIV", era:'32-bit', year:1998, grid:[4,8] },
+  { id:'g60', tokenId:60, trait:"Age of Empires", finalTitle:"Thirty-Two-Bit Tableau XV", era:'32-bit', year:1997, grid:[4,8] },
+  { id:'g61', tokenId:61, trait:"Tony Hawk's Pro Skater", finalTitle:"Thirty-Two-Bit Tableau XVI", era:'32-bit', year:1999, grid:[4,8] },
+  { id:'g62', tokenId:62, trait:"Sonic Adventure", finalTitle:"Thirty-Two-Bit Tableau XVII", era:'32-bit', year:1998, grid:[4,8] },
+  { id:'g63', tokenId:63, trait:"Pok\u00e9mon Red/Blue", finalTitle:"Thirty-Two-Bit Tableau XVIII", era:'32-bit', year:1996, grid:[4,8] },
+  { id:'g64', tokenId:64, trait:"Quake III Arena", finalTitle:"Thirty-Two-Bit Tableau XIX", era:'32-bit', year:1999, grid:[4,8] },
 ];
-
 const MINT_PRICE = 0.05;
 const POOL_TOTAL = 64;
 
-/* arrangement */
-function seededRand(seed) {
-  let s = seed >>> 0;
-  return function() { s = (s*1664525 + 1013904223) >>> 0; return s/4294967296; };
-}
-function arrange(palette, rows, cols, seed) {
-  const total = rows*cols, dup = total/palette.length;
-  const pool = [];
-  for (let i=0; i<dup; i++) pool.push(...palette);
-  const r = seededRand(seed);
-  for (let i=pool.length-1; i>0; i--) {
-    const j = Math.floor(r()*(i+1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  return pool;
+/* SVG path helper — token ID → file path */
+function svgPath(tokenId) {
+  return '/svg/' + String(tokenId).padStart(3, '0') + '.svg';
 }
 
 /* ============================================================
@@ -1350,77 +1398,108 @@ function typewriteLines($el, lines, delayPerChar) {
   nextLine();
 }
 
-/* revealed state */
-function renderStageRevealed(game) {
-  return new Promise((resolve) => {
-    state.stagePhase = 'revealed';
-    const eraClass = 'era-' + game.era.split('-')[0];
-    const [rows, cols] = game.grid;
-    const totalCells = rows * cols;
-    const seed = Math.floor(Math.random()*1e6);
-    const cells = arrange(game.palette, rows, cols, seed);
+/* revealed state — sprite-load build from real arrangement, swap to real SVG when done */
+async function renderStageRevealed(game) {
+  state.stagePhase = 'revealed';
+  const eraClass = 'era-' + game.era.split('-')[0];
+  const [rows, cols] = game.grid;
+  const totalCells = rows * cols;
 
-    const sizeTag = game.era === '32-bit'
-      ? '<span class="era-size-tag lottery">★ SIZE LOTTERY · 4× BIGGER ★</span>'
-      : game.era === '16-bit'
-      ? '<span class="era-size-tag lottery">★ SIZE LOTTERY · 2× BIGGER ★</span>'
-      : '<span class="era-size-tag">STANDARD SIZE</span>';
+  // Fetch the real SVG and extract its pixel arrangement
+  const svgUrl = svgPath(game.tokenId);
+  let arrangementCells = [];
+  try {
+    const resp = await fetch(svgUrl);
+    const svgText = await resp.text();
+    // Parse the SVG and find the primary <g> (no class), then read its <rect> fills in order.
+    // The generator outputs three layers: cyan ghost, red ghost, primary (no class on the g).
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgText, 'image/svg+xml');
+    // The primary group is the third <g> (after .ch-cyan and .ch-red). Find it deterministically.
+    const groups = doc.querySelectorAll('g');
+    let primary = null;
+    for (const g of groups) {
+      if (!g.classList.length) { primary = g; break; }
+    }
+    if (!primary) primary = groups[2]; // fallback: third group
+    const rects = primary.querySelectorAll('rect');
+    arrangementCells = Array.from(rects).map(r => r.getAttribute('fill'));
+  } catch (e) {
+    console.warn('SVG fetch failed, using fallback', e);
+    // Fallback: black cells (won't happen if /svg/ is hosted correctly)
+    arrangementCells = new Array(totalCells).fill('#000');
+  }
 
-    $stage.innerHTML = `
-      <div class="revealed-screen">
-        <div class="painting-side">
-          <div class="era-banner-row">
-            <div class="era-banner ${eraClass}">${game.era.toUpperCase()}</div>
-            ${sizeTag}
-          </div>
-          <div class="reveal-grid-wrap">
-            <div class="pixel-grid ${eraClass}" id="revealGrid">
-              ${cells.map(() => '<span class="pixel"></span>').join('')}
-            </div>
-          </div>
+  const sizeTag = game.era === '32-bit'
+    ? '<span class="era-size-tag lottery">★ SIZE LOTTERY · 4× BIGGER ★</span>'
+    : game.era === '16-bit'
+    ? '<span class="era-size-tag lottery">★ SIZE LOTTERY · 2× BIGGER ★</span>'
+    : '<span class="era-size-tag">STANDARD SIZE</span>';
+
+  // Render the stage with a placeholder grid for the build animation
+  $stage.innerHTML = `
+    <div class="revealed-screen">
+      <div class="painting-side">
+        <div class="era-banner-row">
+          <div class="era-banner ${eraClass}">${game.era.toUpperCase()}</div>
+          ${sizeTag}
         </div>
-        <div class="info-side">
-          <div class="game-trait">★ ${game.trait.toUpperCase()} ★</div>
-          <div class="game-final-title">${game.finalTitle}</div>
-          <div class="game-year">${game.era.toUpperCase()} · ${game.year}</div>
-          <div class="screenshot-frame">
-            <img src="${game.screenshot}" alt="${game.trait}" onerror="this.style.display='none'; this.parentElement.querySelector('.screenshot-caption').textContent='SCREENSHOT UNAVAILABLE'; this.parentElement.style.background='#1a0033';" />
-          </div>
-          <div class="screenshot-caption">SOURCE GAME · ${game.year}</div>
-          <div class="reveal-actions">
-            <button class="coin-btn lock locked" onclick="toggleRollLockFromStage()" id="lockBtn">✓ LOCKED IN</button>
-            <button class="coin-btn ghost" onclick="startRoll()" id="rollAgainBtn">ROLL AGAIN ►</button>
+        <div class="reveal-grid-wrap" id="revealWrap">
+          <div class="pixel-grid ${eraClass}" id="revealGrid">
+            ${arrangementCells.map(() => '<span class="pixel"></span>').join('')}
           </div>
         </div>
       </div>
-    `;
+      <div class="info-side">
+        <div class="game-trait">★ ${game.trait.toUpperCase()} ★</div>
+        <div class="game-final-title">${game.finalTitle}</div>
+        <div class="game-year">${game.era.toUpperCase()} · ${game.year}</div>
+        <div class="reveal-actions">
+          <button class="coin-btn lock locked" onclick="toggleRollLockFromStage()" id="lockBtn">✓ LOCKED IN</button>
+          <button class="coin-btn ghost" onclick="startRoll()" id="rollAgainBtn">ROLL AGAIN ►</button>
+        </div>
+      </div>
+    </div>
+  `;
 
-    // pixel-by-pixel sprite load — random order
-    const $pixels = $stage.querySelectorAll('.pixel');
-    const indices = Array.from({length: totalCells}, (_, i) => i).sort(() => Math.random() - 0.5);
-    indices.forEach((idx, order) => {
-      setTimeout(() => {
-        if ($pixels[idx]) {
-          $pixels[idx].style.background = cells[idx];
-          $pixels[idx].classList.add('lit');
-        }
-      }, 80 + order * 28);
-    });
+  // Sprite-load build — reveal the real arrangement one pixel at a time, random order
+  const $pixels = $stage.querySelectorAll('.pixel');
+  const indices = Array.from({length: totalCells}, (_, i) => i).sort(() => Math.random() - 0.5);
+  const perPixelDelay = totalCells > 16 ? 22 : 28; // faster for 32-bit so total time stays similar
+  const buildStart = 80;
 
-    // disable roll-again if no rolls left after this one
+  indices.forEach((idx, order) => {
     setTimeout(() => {
-      const rollsLeftAfter = state.totalRolls - (state.rollsUsed + 1);
-      if (rollsLeftAfter <= 0) {
-        const $r = document.getElementById('rollAgainBtn');
-        if ($r) {
-          $r.textContent = 'NO ROLLS LEFT';
-          $r.disabled = true;
-        }
+      if ($pixels[idx]) {
+        $pixels[idx].style.background = arrangementCells[idx];
+        $pixels[idx].classList.add('lit');
       }
-    }, 100);
-
-    setTimeout(resolve, 2400);
+    }, buildStart + order * perPixelDelay);
   });
+
+  // When build completes, swap to the real animated SVG so per-pixel twitch + RGB drift kick in
+  const buildDuration = buildStart + totalCells * perPixelDelay + 200;
+  setTimeout(() => {
+    const $wrap = document.getElementById('revealWrap');
+    if ($wrap) {
+      $wrap.innerHTML = `<img class="reveal-svg ${eraClass}" src="${svgUrl}" alt="${game.trait}" />`;
+    }
+  }, buildDuration);
+
+  // disable roll-again if no rolls left after this one
+  setTimeout(() => {
+    const rollsLeftAfter = state.totalRolls - (state.rollsUsed + 1);
+    if (rollsLeftAfter <= 0) {
+      const $r = document.getElementById('rollAgainBtn');
+      if ($r) {
+        $r.textContent = 'NO ROLLS LEFT';
+        $r.disabled = true;
+      }
+    }
+  }, 100);
+
+  // Wait for the full build + a beat before resolving (so the next call can fire cleanly)
+  await new Promise(r => setTimeout(r, buildDuration + 200));
 }
 
 function toggleRollLockFromStage() {
@@ -1451,16 +1530,12 @@ function renderTray() {
     if (i < state.rolls.length) {
       const r = state.rolls[i];
       const eraClass = 'era-' + r.game.era.split('-')[0];
-      const [rows, cols] = r.game.grid;
-      const cells = arrange(r.game.palette, rows, cols, r.seed);
 
       const slot = document.createElement('div');
       slot.className = 'tray-slot filled' + (r.locked ? ' locked' : '') + (state.activeRollIdx === i ? ' active' : '');
       slot.innerHTML = `
         <div class="tray-era-tag ${eraClass}">${r.game.era.toUpperCase()}</div>
-        <div class="tray-thumb pixel-grid ${eraClass}">
-          ${cells.map(c => `<span class="thumb-pixel" style="background:${c}"></span>`).join('')}
-        </div>
+        <img class="tray-thumb-svg ${eraClass}" src="${svgPath(r.game.tokenId)}" alt="${r.game.trait}" />
         <div class="tray-slot-meta">
           <div class="tray-slot-title">${r.game.trait.toUpperCase()}</div>
           <div class="tray-slot-status">${r.locked ? '● LOCKED' : '○ HELD'}</div>
