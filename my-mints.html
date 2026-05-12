@@ -591,6 +591,68 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  /* POST-MINT BANNER — shown when arriving from a fresh mint */
+  .post-mint-banner {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 250;
+    background: linear-gradient(to right, var(--neon-yellow) 0%, var(--neon-pink) 100%);
+    color: #000;
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 0.10em;
+    padding: 0;
+    box-shadow: 0 4px 0 #000, 0 8px 30px rgba(255,240,0,0.4);
+    animation: pmbSlideIn 0.4s steps(6);
+  }
+  @keyframes pmbSlideIn {
+    from { transform: translateY(-100%); }
+    to   { transform: translateY(0); }
+  }
+  @keyframes pmbFadeOut {
+    to { opacity: 0; transform: translateY(-20px); }
+  }
+  .pmb-inner {
+    display: flex; align-items: center; justify-content: center;
+    gap: 18px; padding: 14px 60px 14px 24px;
+    position: relative;
+    flex-wrap: wrap;
+  }
+  .pmb-star {
+    font-size: 16px;
+    animation: spinStar 1.2s steps(8) infinite;
+  }
+  .pmb-text {
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.4);
+  }
+  .pmb-text strong { letter-spacing: 0.14em; }
+  .pmb-hash {
+    font-family: var(--font-screen);
+    font-size: 16px;
+    background: #000;
+    color: var(--neon-cyan);
+    padding: 2px 8px;
+    text-shadow: none;
+  }
+  .pmb-close {
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #000;
+    border: 2px solid #000;
+    color: var(--neon-yellow);
+    width: 28px; height: 28px;
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: 14px;
+    line-height: 1;
+  }
+  .pmb-close:hover {
+    background: var(--neon-pink);
+    color: #fff;
+  }
+
   @media (max-width: 720px) {
     .marquee { padding: 14px 18px; }
     .marquee-title { font-size: 14px; }
@@ -1206,7 +1268,105 @@ function showToast(msg) {
   setTimeout(() => $t.classList.remove('show'), 3000);
 }
 
+/* ============================================================
+   POST-MINT HAND-OFF
+   If we arrived from a fresh mint, pull the minted token IDs from sessionStorage,
+   look them up in the catalog, add them to WORKS, pre-select for physical claim,
+   and auto-open the claim drawer with a celebratory banner.
+   ============================================================ */
+async function handlePostMintArrival() {
+  const raw = sessionStorage.getItem('pixelarcade_post_mint_claim');
+  if (!raw) return false;
+  sessionStorage.removeItem('pixelarcade_post_mint_claim');
+
+  let payload;
+  try { payload = JSON.parse(raw); } catch { return false; }
+  if (!payload || !payload.tokenIds || payload.tokenIds.length === 0) return false;
+
+  // Fetch the catalog to resolve token IDs → full metadata
+  let catalog = [];
+  try {
+    const resp = await fetch('/svg/catalog.json');
+    catalog = await resp.json();
+  } catch (e) {
+    console.warn('Could not load catalog for post-mint hand-off', e);
+    return false;
+  }
+
+  // Add each minted work to WORKS at the front (so they appear first in the gallery)
+  const addedWorks = [];
+  let nextId = WORKS.length + 1;
+  for (const tokenId of payload.tokenIds) {
+    const entry = catalog.find(c => c.token_id === tokenId);
+    if (!entry) continue;
+    // If this token is already in WORKS (e.g. mock data), skip — just select it
+    const existing = WORKS.find(w => w.tokenId === tokenId);
+    if (existing) {
+      addedWorks.push(existing);
+      continue;
+    }
+    const w = {
+      id: 'm' + nextId++,
+      tokenId: entry.token_id,
+      trait: entry.wildpixel ? null : entry.name,
+      finalTitle: entry.art_title,
+      era: entry.era,
+      year: entry.wildpixel ? null : entry.year,
+      grid: [entry.grid.rows, entry.grid.cols],
+      status: entry.wildpixel ? 'awaiting-palette' : 'minted',
+      physical: false,
+      wildpixel: entry.wildpixel,
+    };
+    WORKS.unshift(w);  // insert at top so they're visible first
+    addedWorks.push(w);
+  }
+
+  // Pre-select all minted works that are eligible for physical claim
+  // (wildpixels with no palette yet can't be claimed for physical until completed)
+  for (const w of addedWorks) {
+    if (!w.wildpixel || w.status === 'minted') {
+      state.selected.add(w.id);
+    }
+  }
+
+  // Re-render with new works in place + selection state
+  renderGallery();
+  updateCartCount();
+
+  // Show a celebratory banner + auto-open the claim drawer after a beat
+  showPostMintBanner(addedWorks.length, payload.txHash);
+  setTimeout(() => { openDrawer(); }, 800);
+
+  return true;
+}
+
+function showPostMintBanner(count, txHash) {
+  const banner = document.createElement('div');
+  banner.className = 'post-mint-banner';
+  banner.innerHTML = `
+    <div class="pmb-inner">
+      <span class="pmb-star">★</span>
+      <span class="pmb-text">
+        <strong>FRESH MINT</strong> · ${count} WORK${count !== 1 ? 'S' : ''} ADDED TO YOUR WALLET ·
+        TX <span class="pmb-hash">${txHash}</span> ·
+        <strong>CLAIM YOUR PHYSICALS BELOW</strong>
+      </span>
+      <span class="pmb-star">★</span>
+      <button class="pmb-close" onclick="this.parentElement.parentElement.remove()" aria-label="Dismiss">×</button>
+    </div>
+  `;
+  document.body.appendChild(banner);
+  // Auto-fade after 12 seconds
+  setTimeout(() => {
+    if (banner.parentElement) {
+      banner.style.animation = 'pmbFadeOut 0.6s forwards';
+      setTimeout(() => banner.remove(), 700);
+    }
+  }, 12000);
+}
+
 renderGallery();
+handlePostMintArrival();
 </script>
 </body>
 </html>

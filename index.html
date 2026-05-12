@@ -263,6 +263,18 @@
   }
   .footer .build-line { color: var(--pixel-fade); margin-bottom: 6px; }
   .footer .build-line .hl { color: var(--neon-cyan); }
+  .footer .wizards-link {
+    color: var(--pixel-fade);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--pixel-fade);
+    padding-bottom: 1px;
+    letter-spacing: 0.14em;
+  }
+  .footer .wizards-link:hover {
+    color: var(--neon-yellow);
+    border-bottom-color: var(--neon-yellow);
+    text-shadow: 0 0 6px var(--neon-yellow);
+  }
 
   /* === RESPONSIVE === */
   @media (max-width: 720px) {
@@ -477,18 +489,13 @@
       <span class="label">YOUR MINTS</span>
       <span class="sub">COLLECTOR PAGE<br />CLAIM · WILDPIXEL PALETTES</span>
     </a>
-    <a href="https://github.com/MintFaced/pixel-arcade/blob/main/pixelarcade_contract_spec.md" target="_blank" rel="noopener" class="cab-btn spec">
-      <span class="arrow">▶</span>
-      <span class="label">CONTRACT SPEC</span>
-      <span class="sub">SMART CONTRACT REQUIREMENTS<br />FOR DEV REFERENCE</span>
-    </a>
   </div>
 </main>
 
 <div class="footer">
   <div class="prototype-tag">★ PROTOTYPE · CONTRACT WIP · DEMO STATE ★</div>
-  <div class="build-line">SCREENS USE <span class="hl">PLACEHOLDER WALLET &amp; SCREENSHOTS</span> · FINAL ASSETS ON R2</div>
-  <div>© 2026 MINTFACE · 64 ARCADE PIXEL PAINTINGS</div>
+  <div class="build-line">SCREENS USE <span class="hl">PLACEHOLDER WALLET</span> · NO REAL ETH MOVES YET</div>
+  <div>© 2026 MINTFACE · 64 ARCADE PIXEL PAINTINGS · <a href="/wizards" class="wizards-link">WIZARDS</a></div>
 </div>
 
 </body>

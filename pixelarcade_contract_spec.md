@@ -9,14 +9,15 @@
 
 ## 1. Executive summary
 
-PixelArcade needs a custom ERC-721 1/1/X contract supporting six non-standard mechanics that go beyond stock marketplace offerings:
+PixelArcade needs a custom ERC-721 1/1/X contract supporting seven non-standard mechanics that go beyond stock marketplace offerings:
 
 1. **VRF-random reveal at roll time** — collector rolls and a random unminted token is revealed; the artist does *not* pre-determine the mint order.
 2. **Tier-gated daily roll allowance** — wallets get 3 or 5 rolls per UTC day based on off-chain verification (TDH whale status, line-artist allowlist).
 3. **Off-chain session holds with on-chain race-to-mint** — collectors can hold rolled tokens in an ephemeral session tray and toggle lock/unlock, but the final mint is a permissionless race; first batch-mint transaction to land wins.
 4. **Batch mint** of multiple specific token IDs in a single transaction.
 5. **Post-mint metadata updates for wildpixel tokens** — collectors of designated "wildpixel" token IDs can write their final palette + arrangement + trait into the metadata one time, after which it is frozen.
-6. **Era-aware token metadata** — every token's metadata declares its era (8-bit / 16-bit / 32-bit) which determines the physical painting price downstream (off-chain).
+6. **Era-aware token metadata** — every token's metadata declares its era (8-bit / 16-bit / 32-bit) which determines the physical painting price downstream.
+7. **On-chain physical painting claim** — collectors who own a token can pay an era-based ETH price (plus shipping, with a 5+ bundle discount) to commission the physical painting. Payment forwards directly to MintFace's receiver address; the `PhysicalClaimed` event tells the backend to ship.
 
 The contract is on-chain. A backend service holds ephemeral roll-session state and submits signed authorizations that the contract verifies.
 
@@ -189,6 +190,38 @@ Admin-only. Lets MintFace rotate the backend signer key if it's ever compromised
 
 `royaltyInfo(uint256, uint256 salePrice) returns (address, uint256)` — returns MintFace's royalty receiver and royalty amount. Configurable by admin. Default 5% (500 basis points), to be confirmed with artist.
 
+### 5.8 `claimPhysical(uint256[] calldata tokenIds) external payable`
+
+Lets collectors pay for the physical paintings that correspond to NFTs they own. Emits one `PhysicalClaimed` event per token. Requirements:
+
+- Caller must own every tokenId in the array at call time (`ownerOf(tokenId) == msg.sender`).
+- For each tokenId, `physicalClaimed[tokenId]` must be false (no double-claim).
+- For wildpixel tokens, `wildpixelCompleted[tokenId]` must be true — collectors can't order a physical of an uncompleted wildpixel.
+- `msg.value` must equal the total computed price (sum of per-era prices, minus bundle discount if `tokenIds.length >= 5`).
+- ETH forwards directly to the `physicalPaymentReceiver` address (defaults to `mintface.eth`, admin-settable).
+- Sets `physicalClaimed[tokenId] = true` for each token. **Permanent** — same finality as wildpixel; once claimed, can never be re-claimed.
+
+Pricing is read from these admin-settable state variables:
+
+```solidity
+mapping(Era => uint256) public physicalPrice;     // 8-bit: 0.50 ETH, 16-bit: 0.75, 32-bit: 1.25
+uint256 public shippingFee;                        // 0.25 ETH default, applied once per claim
+uint256 public bundleThreshold;                    // 5 default; >= this count waives shippingFee
+address public physicalPaymentReceiver;            // mintface.eth at deploy; admin-settable
+```
+
+The contract derives era from tokenId (1-17 = 8-bit, 18-45 = 16-bit, 46-64 = 32-bit). The frontend should call a view function `previewClaimCost(uint256[] tokenIds) external view returns (uint256)` so the UI can show the exact total before the collector signs.
+
+**Off-chain pairing:** the backend watches `PhysicalClaimed` events and uses them to drive its shipping queue — when an event fires, the backend pulls the collector's address (from indexed `claimer`), token ID, and amount paid; cross-references against the collector's shipping address (collected via a separate signed message at claim time, see §7.7); and queues the painting for fulfilment.
+
+### 5.9 `setPhysicalPrice(Era era, uint256 newPrice)` / `setShippingFee(uint256)` / `setBundleThreshold(uint256)` / `setPhysicalPaymentReceiver(address)`
+
+Admin-only. Lets MintFace adjust physical pricing post-deploy (e.g. for shipping cost changes, sale events, or moving the payment receiver to a multisig). All emit configuration events for auditability.
+
+### 5.10 `previewClaimCost(uint256[] calldata tokenIds) external view returns (uint256)`
+
+Pure view function. Returns the exact ETH amount required for `claimPhysical` with the given token IDs, including bundle discount. The frontend calls this before showing the "CLAIM ALL · X.YZ ETH" button so the displayed total can never be wrong.
+
 ---
 
 ## 6. Events
@@ -197,6 +230,11 @@ Admin-only. Lets MintFace rotate the backend signer key if it's ever compromised
 event Minted(uint256 indexed tokenId, address indexed collector);
 event WildpixelCompleted(uint256 indexed tokenId, address indexed owner, string newTokenURI);
 event MintAuthorizerChanged(address indexed oldAuthorizer, address indexed newAuthorizer);
+event PhysicalClaimed(uint256 indexed tokenId, address indexed claimer, uint256 amountPaid);
+event PhysicalPriceChanged(uint8 indexed era, uint256 oldPrice, uint256 newPrice);
+event ShippingFeeChanged(uint256 oldFee, uint256 newFee);
+event BundleThresholdChanged(uint256 oldThreshold, uint256 newThreshold);
+event PhysicalPaymentReceiverChanged(address indexed oldReceiver, address indexed newReceiver);
 ```
 
 Standard ERC-721 events (`Transfer`, `Approval`, `ApprovalForAll`) and EIP-4906 (`MetadataUpdate`) emitted via the inherited core contract.
@@ -261,6 +299,17 @@ When the collector clicks "MINT ALL LOCKED":
 5. Frontend calls `contract.batchMint(auth, signature)` with `msg.value = totalPrice`
 
 The signature is single-use (nonce-protected). If the collector doesn't broadcast within `deadline` (e.g. 10 minutes), the auth expires.
+
+### 7.7 Shipping address collection at physical claim
+
+The `claimPhysical` contract function doesn't store shipping addresses on-chain — keeping personal data off-chain is both a privacy decision and a gas optimization. Instead:
+
+1. Before showing the `CLAIM PHYSICALS ►` button, the frontend presents a shipping address form.
+2. The collector signs the address with their wallet via EIP-712 (no gas — it's just a signature, not a transaction). This proves the address came from the collector and wasn't injected later by the backend.
+3. The signed address is POSTed to the backend, which stores it keyed by `(wallet_address, token_ids)`.
+4. The collector then signs the actual `claimPhysical` transaction. The backend watches for the `PhysicalClaimed` events and matches them against the stored shipping addresses by `claimer` + `tokenId`.
+
+This separation matters: if the backend goes down between steps 3 and 4, the collector's claim still succeeds on-chain (their tokens are flagged claimed, ETH is sent), but their shipping address might be lost. **Mitigation:** the backend should durably persist the signed shipping payload before allowing the user to proceed to the contract call. If recovery is needed, the collector can re-submit the shipping address later, signed against their original wallet, and the backend can match it to the on-chain event by `claimer` + `tokenId`.
 
 ---
 
@@ -377,6 +426,12 @@ These are deliberately questions for the implementer to weigh in on, not pre-dec
 6. **Pause coverage** — should `completeWildpixel` also be pausable, or always available? Strong opinion: always available. The collector owns the token; they should always be able to complete their wildpixel regardless of contract pause state.
 
 7. **Token enumeration** — do you need `ERC721Enumerable` (lets contracts iterate over all tokens of an owner)? It significantly increases gas costs (Manifold notes ~2x mint cost). Most modern dApps use off-chain indexing (Alchemy, Reservoir) instead. Recommend: skip Enumerable, rely on indexer.
+
+8. **Physical claim — ETH direct or contract-held?** §5.8 currently has ETH forward directly to `physicalPaymentReceiver` on call. Alternative: hold ETH in contract, withdraw via separate admin function. Direct is simpler and saves gas. Contract-held is auditable but adds complexity. My recommendation: direct forward, with `physicalPaymentReceiver` defaulting to a Safe multisig (not an EOA) for that extra layer of safety.
+
+9. **Physical claim — should re-claim ever be allowed?** Currently §5.8 sets `physicalClaimed[tokenId] = true` permanently. Alternative: admin can flip it back to false (e.g. if a painting got damaged in shipping and needs to be re-painted/re-shipped). Risk: opens an attack surface. Mitigation: such cases are very rare and can be handled off-chain (refund + manual re-ship) without re-claim. My recommendation: keep permanent.
+
+10. **Physical claim and token transfer.** What happens if Alice owns token #42, doesn't claim a physical, transfers to Bob, then Bob claims the physical? The contract allows this — `claimPhysical` checks current owner. But there's a corollary: if Alice DID claim, then transfers to Bob, Bob owns an NFT whose physical has already been claimed (and shipped to Alice). The `physicalClaimed[tokenId]` flag prevents Bob from claiming again. Document this on the website. Some collectors will find it surprising.
 
 ---
 
