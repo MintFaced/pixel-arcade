@@ -1,0 +1,322 @@
+/* Wizards page styles — ported from wizards.html
+   Note: global CRT layers from globals.css are used; the original page's
+   own ::before/::after scanlines are not duplicated here. */
+
+/* === Marquee header === */
+.marquee {
+  background: linear-gradient(to bottom, #2a0a4a 0%, #100620 100%);
+  border-bottom: 4px solid var(--neon-pink);
+  box-shadow: 0 4px 0 #000, 0 6px 30px rgba(255,26,217,0.3);
+  padding: 14px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.marqueeLeft {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  color: var(--neon-yellow);
+  text-shadow: 0 0 12px var(--neon-yellow);
+}
+.marqueeLeft a {
+  color: var(--neon-yellow);
+  text-decoration: none;
+}
+.marqueeLeft a:hover {
+  color: var(--neon-pink);
+  text-shadow: 0 0 12px var(--neon-pink);
+}
+.marqueeRight {
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 6px var(--neon-cyan);
+  letter-spacing: 0.2em;
+}
+
+/* === Hero === */
+.hero {
+  padding: 100px 32px 60px;
+  text-align: center;
+  border-bottom: 2px dashed rgba(203,2,178,0.3);
+  margin-bottom: 60px;
+}
+.heroEyebrow {
+  font-family: var(--font-pixel);
+  font-size: 13px;
+  color: var(--neon-cyan);
+  letter-spacing: 0.4em;
+  margin-bottom: 24px;
+  text-shadow: 0 0 8px var(--neon-cyan);
+}
+.heroTitle {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 10vw, 96px);
+  color: var(--neon-yellow);
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  text-shadow:
+    4px 4px 0 var(--neon-pink),
+    8px 8px 0 var(--neon-magenta),
+    0 0 40px rgba(255,240,0,0.4);
+  margin-bottom: 24px;
+}
+.heroSub {
+  font-family: var(--font-screen);
+  font-size: 24px;
+  color: var(--pixel-dim);
+  max-width: 720px;
+  margin: 0 auto;
+  line-height: 1.4;
+}
+.heroSub em {
+  color: var(--neon-pink);
+  font-style: italic;
+  font-weight: bold;
+  text-shadow: 0 0 8px var(--neon-pink);
+}
+
+/* === Content body === */
+.content {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 32px 80px;
+}
+
+.section {
+  margin-bottom: 96px;
+}
+
+/* h2 lives inside content/section. Selector targets actual <h2> tag so the
+   ::before chapter mark applies. */
+.h2 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 10px var(--neon-cyan);
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--neon-magenta);
+  position: relative;
+}
+.h2::before {
+  content: '▶';
+  color: var(--neon-pink);
+  margin-right: 12px;
+  font-size: 14px;
+  text-shadow: 0 0 6px var(--neon-pink);
+}
+.chapterNum {
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-size: 14px;
+  color: var(--neon-yellow);
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 8px var(--neon-yellow);
+}
+
+/* Body prose — applies to all <p> inside the section */
+.section p {
+  font-family: var(--font-screen);
+  font-size: 22px;
+  line-height: 1.55;
+  color: #e8d8ff;
+  margin-bottom: 22px;
+}
+.section p em {
+  color: var(--neon-cyan);
+  font-style: italic;
+}
+.section p strong {
+  color: var(--neon-yellow);
+  font-weight: normal;
+  text-shadow: 0 0 6px var(--neon-yellow);
+}
+
+/* === Pull quotes === */
+.pullQuote {
+  font-family: var(--font-display);
+  font-size: clamp(16px, 2.6vw, 22px);
+  line-height: 1.5;
+  color: var(--neon-pink);
+  text-shadow: 0 0 12px var(--neon-pink);
+  text-align: center;
+  padding: 40px 20px;
+  margin: 40px -20px;
+  border-top: 2px dashed rgba(255,26,217,0.4);
+  border-bottom: 2px dashed rgba(255,26,217,0.4);
+  letter-spacing: 0.04em;
+}
+
+/* === Lineage cards === */
+.lineageCard {
+  background: linear-gradient(135deg, #1a0a30 0%, #100620 100%);
+  border: 3px solid var(--neon-magenta);
+  box-shadow: 6px 6px 0 #000, 0 0 30px rgba(203,2,178,0.4);
+  padding: 0;
+  margin-bottom: 40px;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+}
+
+.lineageCardImg {
+  background: #000;
+  border-right: 3px solid var(--neon-magenta);
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--neon-cyan);
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-align: center;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.lineageCardImg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.lineageCardBody {
+  padding: 24px 28px;
+}
+.lineageCardYear {
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  color: var(--neon-yellow);
+  letter-spacing: 0.3em;
+  margin-bottom: 8px;
+  text-shadow: 0 0 6px var(--neon-yellow);
+}
+.lineageCardTitle {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--neon-pink);
+  text-shadow: 0 0 8px var(--neon-pink);
+  letter-spacing: 0.04em;
+  margin-bottom: 14px;
+}
+/* Body paragraphs inside lineage cards — slightly smaller than section prose */
+.lineageCardBody p {
+  font-family: var(--font-screen);
+  font-size: 19px;
+  line-height: 1.5;
+  margin-bottom: 18px;
+  color: #d8c8ff;
+}
+.lineageCardBody p em {
+  color: var(--neon-cyan);
+  font-style: italic;
+}
+.lineageCardBody p strong {
+  color: var(--neon-yellow);
+  font-weight: normal;
+  text-shadow: 0 0 6px var(--neon-yellow);
+}
+
+/* Inline listings note — yellow, glowing */
+.lineageCardListings {
+  font-size: 17px !important;
+  color: var(--neon-yellow) !important;
+  text-shadow: 0 0 6px var(--neon-yellow);
+}
+
+.lineageCardLink {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 10px;
+  color: var(--neon-cyan);
+  text-decoration: none;
+  border: 2px solid var(--neon-cyan);
+  padding: 8px 14px;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 6px var(--neon-cyan);
+  box-shadow: 3px 3px 0 #000;
+}
+.lineageCardLink:hover {
+  background: var(--neon-cyan);
+  color: #000;
+  text-shadow: none;
+}
+
+/* === Closing section === */
+.closing {
+  margin-top: 120px;
+  padding: 60px 32px;
+  text-align: center;
+  border-top: 2px solid var(--neon-magenta);
+  border-bottom: 2px solid var(--neon-magenta);
+  background: linear-gradient(to bottom, transparent 0%, rgba(203,2,178,0.06) 50%, transparent 100%);
+}
+.closingEyebrow {
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  color: var(--neon-cyan);
+  letter-spacing: 0.4em;
+  margin-bottom: 24px;
+  text-shadow: 0 0 8px var(--neon-cyan);
+}
+.closing p {
+  font-family: var(--font-screen);
+  font-size: 26px;
+  line-height: 1.4;
+  color: var(--neon-pink);
+  text-shadow: 0 0 12px rgba(255,26,217,0.4);
+  max-width: 640px;
+  margin: 0 auto 20px;
+}
+.closingMark {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--neon-yellow);
+  letter-spacing: 0.3em;
+  text-shadow: 0 0 10px var(--neon-yellow);
+  margin-top: 40px;
+}
+
+/* === Site footer === */
+.siteFooter {
+  background: linear-gradient(to bottom, #100620 0%, #050108 100%);
+  border-top: 4px solid var(--neon-pink);
+  box-shadow: 0 -4px 0 #000, 0 -6px 30px rgba(255,26,217,0.2);
+  padding: 32px 32px 24px;
+  margin-top: 60px;
+  text-align: center;
+}
+.footerMeta {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: var(--pixel-dim);
+  letter-spacing: 0.2em;
+  line-height: 1.7;
+}
+
+/* === Mobile === */
+@media (max-width: 720px) {
+  .marquee { padding: 12px 16px; flex-direction: column; gap: 8px; }
+  .marqueeLeft { font-size: 11px; }
+  .marqueeRight { font-size: 10px; }
+  .hero { padding: 60px 20px 40px; }
+  .content { padding: 0 20px 60px; }
+  .section p { font-size: 19px; }
+  .lineageCard { grid-template-columns: 1fr; }
+  .lineageCardImg {
+    aspect-ratio: 16 / 9;
+    border-right: none;
+    border-bottom: 3px solid var(--neon-magenta);
+  }
+  .pullQuote { font-size: 14px; padding: 28px 12px; margin: 28px -12px; }
+  .closing p { font-size: 20px; }
+}
