@@ -1,5 +1,6 @@
 'use client';
 
+import { useUserBadge } from '../lib/useUserBadge';
 import styles from './UserBadge.module.css';
 
 /**
@@ -10,10 +11,12 @@ import styles from './UserBadge.module.css';
  *   2. ★ LEVEL ★ / N   if has a 6529 Level
  *   3. ★ HI-SCORE ★ / 69420   fallback for everyone else
  *
- * Right now this is hardcoded to show LINE / #42 for the mocked wallet.
- * In session 4 (wallet wiring), this becomes a hook:
- *   const badge = useUserBadge(address);
- * that returns one of the three states based on real data lookups.
+ * Two flavors:
+ *   - <UserBadge badge={badge} /> — presentational, takes any badge data
+ *   - <ConnectedUserBadge />     — wires to wallet via useUserBadge hook
+ *
+ * Use ConnectedUserBadge in actual pages; UserBadge is exported for testing
+ * and for places that want to display a specific badge state directly.
  */
 
 export type BadgeKind = 'line' | 'level' | 'hi-score';
@@ -55,8 +58,14 @@ export function UserBadge({ badge }: { badge: BadgeData }) {
   );
 }
 
+/** Wallet-connected variant — call this inside pages. */
+export function ConnectedUserBadge() {
+  const badge = useUserBadge();
+  return <UserBadge badge={badge} />;
+}
+
 /**
- * Hardcoded mock badge for session 3 (no wallet yet).
- * Replace with `useUserBadge()` in session 4.
+ * Test/preview badge data — fixed Line #42, useful for previews where you
+ * don't want to wire up a wallet. NOT used in production pages.
  */
 export const MOCK_BADGE: BadgeData = { kind: 'line', value: 42 };
