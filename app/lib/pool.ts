@@ -99,3 +99,22 @@ export function svgPath(tokenId: number): string {
 export function eraClass(era: Era): 'era-8' | 'era-16' | 'era-32' {
   return `era-${era.split('-')[0]}` as 'era-8' | 'era-16' | 'era-32';
 }
+
+/**
+ * Physical painting dimensions per era, in millimetres.
+ * Grid × 150mm cell size:
+ *   - 8-bit:  4×2  →  600 × 300mm
+ *   - 16-bit: 8×2  → 1200 × 300mm
+ *   - 32-bit: 8×4  → 1200 × 600mm
+ */
+export const ERA_DIMENSIONS: Record<Era, { w: number; h: number }> = {
+  '8-bit':  { w: 600,  h: 300 },
+  '16-bit': { w: 1200, h: 300 },
+  '32-bit': { w: 1200, h: 600 },
+};
+
+/** Format era dimensions as "600×300mm" — used on my-mints work cards. */
+export function eraDimensionLabel(era: Era): string {
+  const { w, h } = ERA_DIMENSIONS[era];
+  return `${w}×${h}mm`;
+}
