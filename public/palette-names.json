@@ -1,0 +1,2178 @@
+{
+  "1": [
+    {
+      "hex": "#000000",
+      "name": "jungle bg"
+    },
+    {
+      "hex": "#286800",
+      "name": "canopy"
+    },
+    {
+      "hex": "#84D070",
+      "name": "leaves"
+    },
+    {
+      "hex": "#A8732C",
+      "name": "tree trunk"
+    },
+    {
+      "hex": "#F0A878",
+      "name": "Harry skin"
+    },
+    {
+      "hex": "#F0E090",
+      "name": "gold/sand"
+    },
+    {
+      "hex": "#3060B0",
+      "name": "water"
+    },
+    {
+      "hex": "#D04848",
+      "name": "scorpion red"
+    }
+  ],
+  "2": [
+    {
+      "hex": "#000000",
+      "name": "space"
+    },
+    {
+      "hex": "#FFFFFF",
+      "name": "vectors"
+    },
+    {
+      "hex": "#E0E0E0",
+      "name": "lunar surface"
+    },
+    {
+      "hex": "#A0A0A0",
+      "name": "mid grey"
+    },
+    {
+      "hex": "#606060",
+      "name": "shadow"
+    },
+    {
+      "hex": "#303030",
+      "name": "deep shadow"
+    },
+    {
+      "hex": "#FFCC00",
+      "name": "overlay tint"
+    },
+    {
+      "hex": "#FF6020",
+      "name": "thrust"
+    }
+  ],
+  "3": [
+    {
+      "hex": "#000000",
+      "name": "background"
+    },
+    {
+      "hex": "#CC2222",
+      "name": "red row"
+    },
+    {
+      "hex": "#E07020",
+      "name": "orange row"
+    },
+    {
+      "hex": "#E8B038",
+      "name": "yellow row"
+    },
+    {
+      "hex": "#48B048",
+      "name": "green row"
+    },
+    {
+      "hex": "#3870C0",
+      "name": "blue row"
+    },
+    {
+      "hex": "#F0C898",
+      "name": "paddle/ball"
+    },
+    {
+      "hex": "#888888",
+      "name": "walls"
+    }
+  ],
+  "4": [
+    {
+      "hex": "#000000",
+      "name": "night sky"
+    },
+    {
+      "hex": "#9C4828",
+      "name": "terrain"
+    },
+    {
+      "hex": "#FCBC58",
+      "name": "cities"
+    },
+    {
+      "hex": "#E84830",
+      "name": "enemy missile"
+    },
+    {
+      "hex": "#3074C8",
+      "name": "player missile"
+    },
+    {
+      "hex": "#F8E450",
+      "name": "explosion"
+    },
+    {
+      "hex": "#D4D4D4",
+      "name": "crosshair"
+    },
+    {
+      "hex": "#3CB44C",
+      "name": "battery green"
+    }
+  ],
+  "5": [
+    {
+      "hex": "#000000",
+      "name": "space"
+    },
+    {
+      "hex": "#FFFFFF",
+      "name": "vectors"
+    },
+    {
+      "hex": "#C8C8C8",
+      "name": "vector glow"
+    },
+    {
+      "hex": "#FFD800",
+      "name": "logo yellow"
+    },
+    {
+      "hex": "#0A2A88",
+      "name": "cabinet blue"
+    },
+    {
+      "hex": "#C81818",
+      "name": "cabinet red"
+    },
+    {
+      "hex": "#1C1C2C",
+      "name": "bezel tint"
+    },
+    {
+      "hex": "#808080",
+      "name": "phosphor dim"
+    }
+  ],
+  "6": [
+    {
+      "hex": "#000000",
+      "name": "background"
+    },
+    {
+      "hex": "#E40058",
+      "name": "shellcreeper red"
+    },
+    {
+      "hex": "#0078F8",
+      "name": "overalls blue"
+    },
+    {
+      "hex": "#FCBC58",
+      "name": "skin/coin"
+    },
+    {
+      "hex": "#00B800",
+      "name": "pipe green"
+    },
+    {
+      "hex": "#FCFCFC",
+      "name": "platform white"
+    },
+    {
+      "hex": "#A04000",
+      "name": "brown/brick"
+    },
+    {
+      "hex": "#F0BC3C",
+      "name": "POW yellow"
+    }
+  ],
+  "7": [
+    {
+      "hex": "#000000",
+      "name": "road bg"
+    },
+    {
+      "hex": "#00A800",
+      "name": "frog green"
+    },
+    {
+      "hex": "#54FC54",
+      "name": "grass/lily"
+    },
+    {
+      "hex": "#0058F8",
+      "name": "river blue"
+    },
+    {
+      "hex": "#A85400",
+      "name": "log brown"
+    },
+    {
+      "hex": "#FC9838",
+      "name": "turtle orange"
+    },
+    {
+      "hex": "#F83800",
+      "name": "car red"
+    },
+    {
+      "hex": "#FCFC00",
+      "name": "truck yellow"
+    }
+  ],
+  "8": [
+    {
+      "hex": "#000000",
+      "name": "maze bg"
+    },
+    {
+      "hex": "#2121DE",
+      "name": "maze walls"
+    },
+    {
+      "hex": "#FFFF00",
+      "name": "pellet yellow"
+    },
+    {
+      "hex": "#FF0000",
+      "name": "Blinky red"
+    },
+    {
+      "hex": "#FFB8FF",
+      "name": "Pinky pink"
+    },
+    {
+      "hex": "#00FFFF",
+      "name": "Inky cyan"
+    },
+    {
+      "hex": "#FFB851",
+      "name": "Clyde orange"
+    },
+    {
+      "hex": "#DEBA87",
+      "name": "pellet tan"
+    }
+  ],
+  "9": [
+    {
+      "hex": "#3CB4E8",
+      "name": "sky blue"
+    },
+    {
+      "hex": "#48A848",
+      "name": "grass green"
+    },
+    {
+      "hex": "#A0A0A0",
+      "name": "road grey"
+    },
+    {
+      "hex": "#E04030",
+      "name": "kerb red"
+    },
+    {
+      "hex": "#F8F8F8",
+      "name": "kerb white"
+    },
+    {
+      "hex": "#F8C040",
+      "name": "car yellow"
+    },
+    {
+      "hex": "#1840A8",
+      "name": "rival blue"
+    },
+    {
+      "hex": "#000000",
+      "name": "tyres/text"
+    }
+  ],
+  "10": [
+    {
+      "hex": "#000000",
+      "name": "space Titanium White \u2014 use straight from tube B2"
+    },
+    {
+      "hex": "#FFFFFF",
+      "name": "ship/stars"
+    },
+    {
+      "hex": "#FF2828",
+      "name": "lander red"
+    },
+    {
+      "hex": "#FFE000",
+      "name": "laser yellow"
+    },
+    {
+      "hex": "#28E0E0",
+      "name": "humanoid cyan"
+    },
+    {
+      "hex": "#28C828",
+      "name": "terrain"
+    },
+    {
+      "hex": "#E040C8",
+      "name": "mutant magenta"
+    },
+    {
+      "hex": "#FF8030",
+      "name": "explosion"
+    }
+  ],
+  "11": [
+    {
+      "hex": "#000000",
+      "name": "space bg"
+    },
+    {
+      "hex": "#FFFFFF",
+      "name": "stars/ship"
+    },
+    {
+      "hex": "#F83820",
+      "name": "boss red"
+    },
+    {
+      "hex": "#3878F8",
+      "name": "player blue"
+    },
+    {
+      "hex": "#FCFC00",
+      "name": "enemy yellow"
+    },
+    {
+      "hex": "#00F8F8",
+      "name": "bee cyan"
+    },
+    {
+      "hex": "#F848D8",
+      "name": "scorpion pink"
+    },
+    {
+      "hex": "#FC9838",
+      "name": "explosion"
+    }
+  ],
+  "12": [
+    {
+      "hex": "#000000",
+      "name": "field bg"
+    },
+    {
+      "hex": "#48F848",
+      "name": "centipede"
+    },
+    {
+      "hex": "#FCFC00",
+      "name": "mushroom"
+    },
+    {
+      "hex": "#F84040",
+      "name": "spider red"
+    },
+    {
+      "hex": "#F8B0F8",
+      "name": "flea pink"
+    },
+    {
+      "hex": "#3070F8",
+      "name": "scorpion blue"
+    },
+    {
+      "hex": "#F8C800",
+      "name": "player"
+    },
+    {
+      "hex": "#FCFCFC",
+      "name": "shot white"
+    }
+  ],
+  "13": [
+    {
+      "hex": "#000000",
+      "name": "background"
+    },
+    {
+      "hex": "#F83820",
+      "name": "girders red"
+    },
+    {
+      "hex": "#A05020",
+      "name": "plank brown"
+    },
+    {
+      "hex": "#F8C870",
+      "name": "DK tan/skin"
+    },
+    {
+      "hex": "#3878F8",
+      "name": "Mario overalls"
+    },
+    {
+      "hex": "#F8F8F8",
+      "name": "Mario shirt"
+    },
+    {
+      "hex": "#F87898",
+      "name": "Pauline pink"
+    },
+    {
+      "hex": "#FCFC00",
+      "name": "hammer/text"
+    }
+  ],
+  "14": [
+    {
+      "hex": "#000000",
+      "name": "void bg"
+    },
+    {
+      "hex": "#FC9838",
+      "name": "Q*bert orange"
+    },
+    {
+      "hex": "#FCFC00",
+      "name": "cube yellow"
+    },
+    {
+      "hex": "#F848D8",
+      "name": "cube pink"
+    },
+    {
+      "hex": "#48B848",
+      "name": "cube green"
+    },
+    {
+      "hex": "#F83820",
+      "name": "Coily red"
+    },
+    {
+      "hex": "#3878F8",
+      "name": "Slick blue"
+    },
+    {
+      "hex": "#A848F8",
+      "name": "Ugg purple"
+    }
+  ],
+  "15": [
+    {
+      "hex": "#000000",
+      "name": "background"
+    },
+    {
+      "hex": "#A85820",
+      "name": "platform brown"
+    },
+    {
+      "hex": "#F8C040",
+      "name": "player yellow"
+    },
+    {
+      "hex": "#F8F8F8",
+      "name": "ostrich white"
+    },
+    {
+      "hex": "#3878F8",
+      "name": "P2 blue"
+    },
+    {
+      "hex": "#48B848",
+      "name": "buzzard green"
+    },
+    {
+      "hex": "#F83820",
+      "name": "lava red"
+    },
+    {
+      "hex": "#A040A0",
+      "name": "pterodactyl purple"
+    }
+  ],
+  "16": [
+    {
+      "hex": "#3878F8",
+      "name": "sky blue"
+    },
+    {
+      "hex": "#F8B870",
+      "name": "surface tan"
+    },
+    {
+      "hex": "#A85820",
+      "name": "earth brown"
+    },
+    {
+      "hex": "#683010",
+      "name": "deep brown"
+    },
+    {
+      "hex": "#F8F8F8",
+      "name": "Dig Dug white"
+    },
+    {
+      "hex": "#F83820",
+      "name": "Pooka red"
+    },
+    {
+      "hex": "#48F848",
+      "name": "Fygar green"
+    },
+    {
+      "hex": "#FCFC00",
+      "name": "goggles/fire"
+    }
+  ],
+  "17": [
+    {
+      "hex": "#000000",
+      "name": "grid void"
+    },
+    {
+      "hex": "#F8C800",
+      "name": "lightcycle yellow"
+    },
+    {
+      "hex": "#F83820",
+      "name": "enemy red"
+    },
+    {
+      "hex": "#3070F8",
+      "name": "circuit blue"
+    },
+    {
+      "hex": "#00F8F8",
+      "name": "light cyan"
+    },
+    {
+      "hex": "#F848D8",
+      "name": "grid magenta"
+    },
+    {
+      "hex": "#48B848",
+      "name": "tank green"
+    },
+    {
+      "hex": "#A040F8",
+      "name": "MCP purple"
+    }
+  ],
+  "18": [
+    {
+      "hex": "#1C1C50",
+      "name": "night sky"
+    },
+    {
+      "hex": "#5C5C5C",
+      "name": "street grey"
+    },
+    {
+      "hex": "#0058F8",
+      "name": "Billy blue"
+    },
+    {
+      "hex": "#D03030",
+      "name": "Jimmy red"
+    },
+    {
+      "hex": "#F8B870",
+      "name": "skin tone"
+    },
+    {
+      "hex": "#683818",
+      "name": "brown/hair"
+    },
+    {
+      "hex": "#A04018",
+      "name": "brick wall"
+    },
+    {
+      "hex": "#FCFCFC",
+      "name": "HUD white"
+    }
+  ],
+  "19": [
+    {
+      "hex": "#58A858",
+      "name": "lawn green"
+    },
+    {
+      "hex": "#A0A0A0",
+      "name": "sidewalk grey"
+    },
+    {
+      "hex": "#383838",
+      "name": "road dark"
+    },
+    {
+      "hex": "#E83820",
+      "name": "Paperboy red"
+    },
+    {
+      "hex": "#F8C870",
+      "name": "house tan"
+    },
+    {
+      "hex": "#3878C0",
+      "name": "roof blue"
+    },
+    {
+      "hex": "#FCFCFC",
+      "name": "paper white"
+    },
+    {
+      "hex": "#882010",
+      "name": "brick maroon"
+    }
+  ],
+  "20": [
+    {
+      "hex": "#3878C8",
+      "name": "sky blue"
+    },
+    {
+      "hex": "#A8A8A8",
+      "name": "concrete grey"
+    },
+    {
+      "hex": "#E8B038",
+      "name": "George (ape)"
+    },
+    {
+      "hex": "#48B848",
+      "name": "Lizzie green"
+    },
+    {
+      "hex": "#D8C098",
+      "name": "Ralph (wolf)"
+    },
+    {
+      "hex": "#A04020",
+      "name": "brick brown"
+    },
+    {
+      "hex": "#F84020",
+      "name": "fire/blood"
+    },
+    {
+      "hex": "#F8F8F8",
+      "name": "window white"
+    }
+  ],
+  "21": [
+    {
+      "hex": "#3060C0",
+      "name": "stage blue"
+    },
+    {
+      "hex": "#F8F8F8",
+      "name": "highlight white"
+    },
+    {
+      "hex": "#E83820",
+      "name": "headband red"
+    },
+    {
+      "hex": "#F0B070",
+      "name": "skin tone"
+    },
+    {
+      "hex": "#F8C800",
+      "name": "Ken yellow"
+    },
+    {
+      "hex": "#48B848",
+      "name": "Blanka green"
+    },
+    {
+      "hex": "#683018",
+      "name": "hair brown"
+    },
+    {
+      "hex": "#00C8E8",
+      "name": "hadouken cyan"
+    }
+  ],
+  "22": [
+    {
+      "hex": "#0070D8",
+      "name": "hedgehog blue"
+    },
+    {
+      "hex": "#80E040",
+      "name": "grass green"
+    },
+    {
+      "hex": "#208828",
+      "name": "dark grass"
+    },
+    {
+      "hex": "#88E0F0",
+      "name": "sky cyan"
+    },
+    {
+      "hex": "#F8C040",
+      "name": "ring gold"
+    },
+    {
+      "hex": "#E83020",
+      "name": "shoes red"
+    },
+    {
+      "hex": "#F8E098",
+      "name": "muzzle peach"
+    },
+    {
+      "hex": "#D8A058",
+      "name": "checkered dirt"
+    }
+  ],
+  "23": [
+    {
+      "hex": "#682818",
+      "name": "earth brown"
+    },
+    {
+      "hex": "#C87828",
+      "name": "stone tan"
+    },
+    {
+      "hex": "#F8C840",
+      "name": "axe gold"
+    },
+    {
+      "hex": "#E84020",
+      "name": "fire red"
+    },
+    {
+      "hex": "#3050A8",
+      "name": "night blue"
+    },
+    {
+      "hex": "#F0C098",
+      "name": "skin/muscle"
+    },
+    {
+      "hex": "#404040",
+      "name": "armour grey"
+    },
+    {
+      "hex": "#A85858",
+      "name": "dragon mauve"
+    }
+  ],
+  "24": [
+    {
+      "hex": "#181820",
+      "name": "pit black"
+    },
+    {
+      "hex": "#F8C830",
+      "name": "Scorpion yellow"
+    },
+    {
+      "hex": "#3070D8",
+      "name": "Sub-Zero blue"
+    },
+    {
+      "hex": "#C82020",
+      "name": "blood red"
+    },
+    {
+      "hex": "#D8A878",
+      "name": "skin tone"
+    },
+    {
+      "hex": "#48B048",
+      "name": "Reptile green"
+    },
+    {
+      "hex": "#806848",
+      "name": "temple brown"
+    },
+    {
+      "hex": "#787878",
+      "name": "stone grey"
+    }
+  ],
+  "25": [
+    {
+      "hex": "#48A030",
+      "name": "Hyrule grass"
+    },
+    {
+      "hex": "#286818",
+      "name": "forest dark"
+    },
+    {
+      "hex": "#F8E098",
+      "name": "sand path"
+    },
+    {
+      "hex": "#3070C8",
+      "name": "Link tunic"
+    },
+    {
+      "hex": "#88C8E8",
+      "name": "water cyan"
+    },
+    {
+      "hex": "#E0A058",
+      "name": "blonde hair"
+    },
+    {
+      "hex": "#A03020",
+      "name": "roof red"
+    },
+    {
+      "hex": "#988878",
+      "name": "stone grey"
+    }
+  ],
+  "26": [
+    {
+      "hex": "#A05828",
+      "name": "DK fur brown"
+    },
+    {
+      "hex": "#E04020",
+      "name": "tie red"
+    },
+    {
+      "hex": "#F8C098",
+      "name": "muzzle tan"
+    },
+    {
+      "hex": "#208828",
+      "name": "jungle green"
+    },
+    {
+      "hex": "#F8E840",
+      "name": "banana yellow"
+    },
+    {
+      "hex": "#404068",
+      "name": "cave purple"
+    },
+    {
+      "hex": "#0080C0",
+      "name": "water blue"
+    },
+    {
+      "hex": "#603018",
+      "name": "tree dark"
+    }
+  ],
+  "27": [
+    {
+      "hex": "#3098E8",
+      "name": "sky blue"
+    },
+    {
+      "hex": "#48A848",
+      "name": "grass green"
+    },
+    {
+      "hex": "#888888",
+      "name": "tarmac grey"
+    },
+    {
+      "hex": "#F8F8F8",
+      "name": "kerb white"
+    },
+    {
+      "hex": "#E83020",
+      "name": "kerb red"
+    },
+    {
+      "hex": "#F8C830",
+      "name": "car yellow"
+    },
+    {
+      "hex": "#1840A8",
+      "name": "car blue"
+    },
+    {
+      "hex": "#202020",
+      "name": "tyre black"
+    }
+  ],
+  "28": [
+    {
+      "hex": "#1C1018",
+      "name": "dungeon black"
+    },
+    {
+      "hex": "#604838",
+      "name": "stone brown"
+    },
+    {
+      "hex": "#A07858",
+      "name": "stone tan"
+    },
+    {
+      "hex": "#F8F8F0",
+      "name": "prince white"
+    },
+    {
+      "hex": "#D8B098",
+      "name": "skin tone"
+    },
+    {
+      "hex": "#C82828",
+      "name": "blood red"
+    },
+    {
+      "hex": "#80A8C8",
+      "name": "torch glow"
+    },
+    {
+      "hex": "#383028",
+      "name": "guard dark"
+    }
+  ],
+  "29": [
+    {
+      "hex": "#1C1828",
+      "name": "graveyard sky"
+    },
+    {
+      "hex": "#682030",
+      "name": "blood maroon"
+    },
+    {
+      "hex": "#48A030",
+      "name": "Arthur armour"
+    },
+    {
+      "hex": "#F8C830",
+      "name": "flame yellow"
+    },
+    {
+      "hex": "#E07028",
+      "name": "demon orange"
+    },
+    {
+      "hex": "#806048",
+      "name": "tombstone"
+    },
+    {
+      "hex": "#A8A0B0",
+      "name": "ghost grey"
+    },
+    {
+      "hex": "#504830",
+      "name": "dirt brown"
+    }
+  ],
+  "30": [
+    {
+      "hex": "#181828",
+      "name": "night street"
+    },
+    {
+      "hex": "#FCFCFC",
+      "name": "MJ shirt"
+    },
+    {
+      "hex": "#202020",
+      "name": "MJ suit black"
+    },
+    {
+      "hex": "#F8C840",
+      "name": "stage gold"
+    },
+    {
+      "hex": "#E03868",
+      "name": "neon pink"
+    },
+    {
+      "hex": "#3878D8",
+      "name": "neon blue"
+    },
+    {
+      "hex": "#D8A878",
+      "name": "skin tone"
+    },
+    {
+      "hex": "#888888",
+      "name": "enemy grey"
+    }
+  ],
+  "31": [
+    {
+      "hex": "#101020",
+      "name": "play black"
+    },
+    {
+      "hex": "#C8C8D0",
+      "name": "chrome silver"
+    },
+    {
+      "hex": "#E83020",
+      "name": "flipper red"
+    },
+    {
+      "hex": "#F8C830",
+      "name": "bumper yellow"
+    },
+    {
+      "hex": "#3878D8",
+      "name": "target blue"
+    },
+    {
+      "hex": "#48B848",
+      "name": "light green"
+    },
+    {
+      "hex": "#FF6020",
+      "name": "neon orange"
+    },
+    {
+      "hex": "#603018",
+      "name": "wood brown"
+    }
+  ],
+  "32": [
+    {
+      "hex": "#48B0E8",
+      "name": "sky blue"
+    },
+    {
+      "hex": "#88E040",
+      "name": "grass green"
+    },
+    {
+      "hex": "#208830",
+      "name": "tree dark"
+    },
+    {
+      "hex": "#F8C098",
+      "name": "skin tone"
+    },
+    {
+      "hex": "#F8C830",
+      "name": "hair blonde"
+    },
+    {
+      "hex": "#E04020",
+      "name": "shorts red"
+    },
+    {
+      "hex": "#A85820",
+      "name": "ground brown"
+    },
+    {
+      "hex": "#F8E040",
+      "name": "fruit yellow"
+    }
+  ],
+  "33": [
+    {
+      "hex": "#88B8D8",
+      "name": "sky pale"
+    },
+    {
+      "hex": "#3870A0",
+      "name": "horizon blue"
+    },
+    {
+      "hex": "#508848",
+      "name": "field green"
+    },
+    {
+      "hex": "#A88858",
+      "name": "trench tan"
+    },
+    {
+      "hex": "#F8E0A8",
+      "name": "canvas wing"
+    },
+    {
+      "hex": "#A02818",
+      "name": "Fokker red"
+    },
+    {
+      "hex": "#403028",
+      "name": "leather brown"
+    },
+    {
+      "hex": "#D8C898",
+      "name": "cloud cream"
+    }
+  ],
+  "34": [
+    {
+      "hex": "#A86838",
+      "name": "desert tan"
+    },
+    {
+      "hex": "#604018",
+      "name": "leather jacket"
+    },
+    {
+      "hex": "#D8A858",
+      "name": "fedora khaki"
+    },
+    {
+      "hex": "#F8E0A0",
+      "name": "parchment"
+    },
+    {
+      "hex": "#88C0E8",
+      "name": "sky blue"
+    },
+    {
+      "hex": "#383838",
+      "name": "Nazi grey"
+    },
+    {
+      "hex": "#C82020",
+      "name": "swastika red"
+    },
+    {
+      "hex": "#F8C840",
+      "name": "grail gold"
+    }
+  ],
+  "35": [
+    {
+      "hex": "#1C2840",
+      "name": "night sky"
+    },
+    {
+      "hex": "#48A0B0",
+      "name": "Caribbean teal"
+    },
+    {
+      "hex": "#88D0D8",
+      "name": "water cyan"
+    },
+    {
+      "hex": "#F8E098",
+      "name": "sand pale"
+    },
+    {
+      "hex": "#F8C098",
+      "name": "Guybrush skin"
+    },
+    {
+      "hex": "#D8A058",
+      "name": "hair blonde"
+    },
+    {
+      "hex": "#3868A0",
+      "name": "vest blue"
+    },
+    {
+      "hex": "#205028",
+      "name": "jungle dark"
+    }
+  ],
+  "36": [
+    {
+      "hex": "#000000",
+      "name": "space black"
+    },
+    {
+      "hex": "#FCFCFC",
+      "name": "stars"
+    },
+    {
+      "hex": "#3070C8",
+      "name": "cockpit blue"
+    },
+    {
+      "hex": "#888888",
+      "name": "hull grey"
+    },
+    {
+      "hex": "#48B848",
+      "name": "HUD green"
+    },
+    {
+      "hex": "#F8C830",
+      "name": "laser yellow"
+    },
+    {
+      "hex": "#E83020",
+      "name": "Kilrathi red"
+    },
+    {
+      "hex": "#A85020",
+      "name": "explosion"
+    }
+  ],
+  "37": [
+    {
+      "hex": "#383838",
+      "name": "ceiling grey"
+    },
+    {
+      "hex": "#707070",
+      "name": "floor grey"
+    },
+    {
+      "hex": "#3868B8",
+      "name": "stone blue wall"
+    },
+    {
+      "hex": "#A85020",
+      "name": "brown wall"
+    },
+    {
+      "hex": "#F8C830",
+      "name": "muzzle flash"
+    },
+    {
+      "hex": "#C82020",
+      "name": "blood red"
+    },
+    {
+      "hex": "#F8B070",
+      "name": "BJ skin"
+    },
+    {
+      "hex": "#000000",
+      "name": "SS uniform"
+    }
+  ],
+  "38": [
+    {
+      "hex": "#48A030",
+      "name": "grass green"
+    },
+    {
+      "hex": "#205020",
+      "name": "forest dark"
+    },
+    {
+      "hex": "#A87030",
+      "name": "path tan"
+    },
+    {
+      "hex": "#3068B8",
+      "name": "water blue"
+    },
+    {
+      "hex": "#F8C098",
+      "name": "skin tone"
+    },
+    {
+      "hex": "#C04020",
+      "name": "cloak red"
+    },
+    {
+      "hex": "#888080",
+      "name": "stone grey"
+    },
+    {
+      "hex": "#F8C840",
+      "name": "gold coin"
+    }
+  ],
+  "39": [
+    {
+      "hex": "#1C1010",
+      "name": "hell black"
+    },
+    {
+      "hex": "#605040",
+      "name": "UAC brown"
+    },
+    {
+      "hex": "#A04020",
+      "name": "demon flesh"
+    },
+    {
+      "hex": "#C82020",
+      "name": "blood red"
+    },
+    {
+      "hex": "#F8B040",
+      "name": "muzzle flash"
+    },
+    {
+      "hex": "#48A848",
+      "name": "marine armour"
+    },
+    {
+      "hex": "#888888",
+      "name": "tech grey"
+    },
+    {
+      "hex": "#502848",
+      "name": "imp purple"
+    }
+  ],
+  "40": [
+    {
+      "hex": "#88C868",
+      "name": "grass green"
+    },
+    {
+      "hex": "#208848",
+      "name": "tree dark"
+    },
+    {
+      "hex": "#3088B8",
+      "name": "water blue"
+    },
+    {
+      "hex": "#A0A0A0",
+      "name": "road grey"
+    },
+    {
+      "hex": "#D8B888",
+      "name": "building tan"
+    },
+    {
+      "hex": "#C03020",
+      "name": "roof red"
+    },
+    {
+      "hex": "#F8C840",
+      "name": "window light"
+    },
+    {
+      "hex": "#404858",
+      "name": "skyscraper"
+    }
+  ],
+  "41": [
+    {
+      "hex": "#000000",
+      "name": "background"
+    },
+    {
+      "hex": "#3070D8",
+      "name": "Lemming body Ea rt h"
+    },
+    {
+      "hex": "#48E048",
+      "name": "lemming green"
+    },
+    {
+      "hex": "#F8C898",
+      "name": "skin tone"
+    },
+    {
+      "hex": "#C87838",
+      "name": "earth orange"
+    },
+    {
+      "hex": "#684830",
+      "name": "rock brown"
+    },
+    {
+      "hex": "#F8E040",
+      "name": "UI yellow"
+    },
+    {
+      "hex": "#C82020",
+      "name": "explosion"
+    }
+  ],
+  "42": [
+    {
+      "hex": "#3088C8",
+      "name": "ocean blue"
+    },
+    {
+      "hex": "#88C868",
+      "name": "plains green"
+    },
+    {
+      "hex": "#C8B068",
+      "name": "grassland tan"
+    },
+    {
+      "hex": "#A04018",
+      "name": "mountain rust Umber"
+    },
+    {
+      "hex": "#205830",
+      "name": "forest dark"
+    },
+    {
+      "hex": "#F8E0A0",
+      "name": "desert sand"
+    },
+    {
+      "hex": "#FCFCFC",
+      "name": "arctic white"
+    },
+    {
+      "hex": "#C82020",
+      "name": "unit red"
+    }
+  ],
+  "43": [
+    {
+      "hex": "#000000",
+      "name": "space"
+    },
+    {
+      "hex": "#FCFCFC",
+      "name": "stars/hull"
+    },
+    {
+      "hex": "#888888",
+      "name": "TIE grey"
+    },
+    {
+      "hex": "#C82020",
+      "name": "X-Wing red"
+    },
+    {
+      "hex": "#48B848",
+      "name": "HUD green"
+    },
+    {
+      "hex": "#F8C830",
+      "name": "laser bolt"
+    },
+    {
+      "hex": "#3070D8",
+      "name": "cockpit blue"
+    },
+    {
+      "hex": "#604018",
+      "name": "Death Star"
+    }
+  ],
+  "44": [
+    {
+      "hex": "#88E040",
+      "name": "park grass"
+    },
+    {
+      "hex": "#A87030",
+      "name": "path tan"
+    },
+    {
+      "hex": "#E83820",
+      "name": "ride red"
+    },
+    {
+      "hex": "#F8C830",
+      "name": "stall yellow"
+    },
+    {
+      "hex": "#3878D8",
+      "name": "water blue"
+    },
+    {
+      "hex": "#F848A0",
+      "name": "candy pink"
+    },
+    {
+      "hex": "#FCFCFC",
+      "name": "tent stripe"
+    },
+    {
+      "hex": "#88C0E8",
+      "name": "sky blue"
+    }
+  ],
+  "45": [
+    {
+      "hex": "#D89030",
+      "name": "desert sand"
+    },
+    {
+      "hex": "#A05818",
+      "name": "dune brown"
+    },
+    {
+      "hex": "#FCB838",
+      "name": "spice gold"
+    },
+    {
+      "hex": "#205820",
+      "name": "Atreides green"
+    },
+    {
+      "hex": "#A82020",
+      "name": "Harkonnen red"
+    },
+    {
+      "hex": "#202020",
+      "name": "Ordos black"
+    },
+    {
+      "hex": "#787068",
+      "name": "rock grey"
+    },
+    {
+      "hex": "#7848A8",
+      "name": "worm purple"
+    }
+  ],
+  "46": [
+    {
+      "hex": "#1C1820",
+      "name": "stage shadow"
+    },
+    {
+      "hex": "#605848",
+      "name": "arena tan"
+    },
+    {
+      "hex": "#D8A878",
+      "name": "skin tone"
+    },
+    {
+      "hex": "#C82828",
+      "name": "Jin gloves red"
+    },
+    {
+      "hex": "#3070C8",
+      "name": "stage blue"
+    },
+    {
+      "hex": "#F8C840",
+      "name": "King yellow"
+    },
+    {
+      "hex": "#503020",
+      "name": "hair brown"
+    },
+    {
+      "hex": "#888888",
+      "name": "concrete grey"
+    }
+  ],
+  "47": [
+    {
+      "hex": "#F88830",
+      "name": "Crash orange"
+    },
+    {
+      "hex": "#3878D8",
+      "name": "jeans blue Ochre"
+    },
+    {
+      "hex": "#FCFCFC",
+      "name": "gloves white"
+    },
+    {
+      "hex": "#88C848",
+      "name": "jungle green"
+    },
+    {
+      "hex": "#206020",
+      "name": "forest dark"
+    },
+    {
+      "hex": "#F8C840",
+      "name": "Wumpa fruit"
+    },
+    {
+      "hex": "#A85820",
+      "name": "crate brown"
+    },
+    {
+      "hex": "#88C8E8",
+      "name": "sky blue"
+    }
+  ],
+  "48": [
+    {
+      "hex": "#0C1828",
+      "name": "tunnel dark"
+    },
+    {
+      "hex": "#E81848",
+      "name": "racing magenta"
+    },
+    {
+      "hex": "#F8E020",
+      "name": "finish yellow"
+    },
+    {
+      "hex": "#1898E8",
+      "name": "neon cyan"
+    },
+    {
+      "hex": "#A030E8",
+      "name": "Designers magenta"
+    },
+    {
+      "hex": "#28D040",
+      "name": "boost green"
+    },
+    {
+      "hex": "#787880",
+      "name": "track grey"
+    },
+    {
+      "hex": "#FCFCFC",
+      "name": "UI white"
+    }
+  ],
+  "49": [
+    {
+      "hex": "#1C2018",
+      "name": "shadow moss"
+    },
+    {
+      "hex": "#383838",
+      "name": "facility grey"
+    },
+    {
+      "hex": "#8A988A",
+      "name": "Snake suit"
+    },
+    {
+      "hex": "#D8C8A8",
+      "name": "skin tone"
+    },
+    {
+      "hex": "#F8E040",
+      "name": "bandanna yellow"
+    },
+    {
+      "hex": "#E8E8F0",
+      "name": "snow pale"
+    },
+    {
+      "hex": "#C82020",
+      "name": "alert red"
+    },
+    {
+      "hex": "#205870",
+      "name": "codec blue"
+    }
+  ],
+  "50": [
+    {
+      "hex": "#383028",
+      "name": "facility brown"
+    },
+    {
+      "hex": "#787068",
+      "name": "concrete grey"
+    },
+    {
+      "hex": "#587848",
+      "name": "jungle olive"
+    },
+    {
+      "hex": "#1C1818",
+      "name": "Bond suit"
+    },
+    {
+      "hex": "#D8B098",
+      "name": "skin tone"
+    },
+    {
+      "hex": "#F8C830",
+      "name": "muzzle flash"
+    },
+    {
+      "hex": "#C03020",
+      "name": "blood splash"
+    },
+    {
+      "hex": "#3868A8",
+      "name": "Russian blue"
+    }
+  ],
+  "51": [
+    {
+      "hex": "#A88858",
+      "name": "tomb sandstone"
+    },
+    {
+      "hex": "#604830",
+      "name": "cave dark"
+    },
+    {
+      "hex": "#48A030",
+      "name": "Lara top teal"
+    },
+    {
+      "hex": "#D8A878",
+      "name": "skin tone Earth"
+    },
+    {
+      "hex": "#503020",
+      "name": "hair brown"
+    },
+    {
+      "hex": "#383838",
+      "name": "shorts grey"
+    },
+    {
+      "hex": "#2868A0",
+      "name": "water blue"
+    },
+    {
+      "hex": "#F8C040",
+      "name": "treasure gold"
+    }
+  ],
+  "52": [
+    {
+      "hex": "#1C1828",
+      "name": "Midgar dark"
+    },
+    {
+      "hex": "#3878D8",
+      "name": "cloud blue"
+    },
+    {
+      "hex": "#F8E040",
+      "name": "spiky blonde"
+    },
+    {
+      "hex": "#88E0C0",
+      "name": "mako green"
+    },
+    {
+      "hex": "#F8B8C8",
+      "name": "Aerith pink"
+    },
+    {
+      "hex": "#A02828",
+      "name": "Shinra red"
+    },
+    {
+      "hex": "#785828",
+      "name": "slum rust"
+    },
+    {
+      "hex": "#D8D0B8",
+      "name": "Sephiroth silver"
+    }
+  ],
+  "53": [
+    {
+      "hex": "#181018",
+      "name": "mansion dark"
+    },
+    {
+      "hex": "#604830",
+      "name": "wood panel"
+    },
+    {
+      "hex": "#A05028",
+      "name": "parquet brown"
+    },
+    {
+      "hex": "#882020",
+      "name": "blood crimson"
+    },
+    {
+      "hex": "#5C7048",
+      "name": "zombie green"
+    },
+    {
+      "hex": "#D8B898",
+      "name": "flesh tone"
+    },
+    {
+      "hex": "#F0E8C8",
+      "name": "candle cream"
+    },
+    {
+      "hex": "#383848",
+      "name": "STARS uniform"
+    }
+  ],
+  "54": [
+    {
+      "hex": "#E03020",
+      "name": "Mario red cap"
+    },
+    {
+      "hex": "#1858B0",
+      "name": "overalls blue"
+    },
+    {
+      "hex": "#FCFCFC",
+      "name": "gloves white"
+    },
+    {
+      "hex": "#F8C098",
+      "name": "skin tone"
+    },
+    {
+      "hex": "#88C8E8",
+      "name": "castle sky"
+    },
+    {
+      "hex": "#88D848",
+      "name": "grass green"
+    },
+    {
+      "hex": "#F8C840",
+      "name": "power star"
+    },
+    {
+      "hex": "#A05828",
+      "name": "brick brown"
+    }
+  ],
+  "55": [
+    {
+      "hex": "#3088C8",
+      "name": "sky blue"
+    },
+    {
+      "hex": "#48A848",
+      "name": "grass infield"
+    },
+    {
+      "hex": "#787878",
+      "name": "tarmac grey"
+    },
+    {
+      "hex": "#F8F8F8",
+      "name": "kerb white"
+    },
+    {
+      "hex": "#E83020",
+      "name": "car red"
+    },
+    {
+      "hex": "#1840A0",
+      "name": "car blue"
+    },
+    {
+      "hex": "#F8C830",
+      "name": "headlight gold"
+    },
+    {
+      "hex": "#202020",
+      "name": "tyre black"
+    }
+  ],
+  "56": [
+    {
+      "hex": "#1C1410",
+      "name": "crypt black"
+    },
+    {
+      "hex": "#604838",
+      "name": "stone brown"
+    },
+    {
+      "hex": "#887058",
+      "name": "brick tan Earth"
+    },
+    {
+      "hex": "#A04018",
+      "name": "rust orange"
+    },
+    {
+      "hex": "#882020",
+      "name": "blood dark"
+    },
+    {
+      "hex": "#404848",
+      "name": "metal grey"
+    },
+    {
+      "hex": "#F8B040",
+      "name": "muzzle flash"
+    },
+    {
+      "hex": "#385030",
+      "name": "slime green"
+    }
+  ],
+  "57": [
+    {
+      "hex": "#181018",
+      "name": "cathedral dark"
+    },
+    {
+      "hex": "#503830",
+      "name": "dungeon brown"
+    },
+    {
+      "hex": "#882828",
+      "name": "demon red"
+    },
+    {
+      "hex": "#F8C840",
+      "name": "gold coin"
+    },
+    {
+      "hex": "#3068A8",
+      "name": "mage blue"
+    },
+    {
+      "hex": "#888070",
+      "name": "stone wall"
+    },
+    {
+      "hex": "#287048",
+      "name": "poison green"
+    },
+    {
+      "hex": "#D8B098",
+      "name": "flesh tone"
+    }
+  ],
+  "58": [
+    {
+      "hex": "#403830",
+      "name": "lambda brown"
+    },
+    {
+      "hex": "#888070",
+      "name": "facility tan"
+    },
+    {
+      "hex": "#F86018",
+      "name": "g-man orange"
+    },
+    {
+      "hex": "#202830",
+      "name": "HEV chest"
+    },
+    {
+      "hex": "#A05030",
+      "name": "headcrab"
+    },
+    {
+      "hex": "#48A848",
+      "name": "Vortigaunt green"
+    },
+    {
+      "hex": "#A030E0",
+      "name": "Xen purple"
+    },
+    {
+      "hex": "#F8E040",
+      "name": "caution yellow"
+    }
+  ],
+  "59": [
+    {
+      "hex": "#283040",
+      "name": "space dark"
+    },
+    {
+      "hex": "#1860C8",
+      "name": "protoss blue"
+    },
+    {
+      "hex": "#E80018",
+      "name": "terran red"
+    },
+    {
+      "hex": "#7820B8",
+      "name": "zerg purple"
+    },
+    {
+      "hex": "#D8A848",
+      "name": "desert tan"
+    },
+    {
+      "hex": "#48B848",
+      "name": "creep green"
+    },
+    {
+      "hex": "#888888",
+      "name": "marine armour"
+    },
+    {
+      "hex": "#F8E020",
+      "name": "mineral yellow"
+    }
+  ],
+  "60": [
+    {
+      "hex": "#3098C8",
+      "name": "water blue"
+    },
+    {
+      "hex": "#88B868",
+      "name": "grassland"
+    },
+    {
+      "hex": "#A88858",
+      "name": "earth tan"
+    },
+    {
+      "hex": "#604830",
+      "name": "forest brown"
+    },
+    {
+      "hex": "#C82020",
+      "name": "Egyptian red"
+    },
+    {
+      "hex": "#F8C830",
+      "name": "Babylon gold"
+    },
+    {
+      "hex": "#A0A0A0",
+      "name": "stone grey"
+    },
+    {
+      "hex": "#FCFCFC",
+      "name": "Greek marble"
+    }
+  ],
+  "61": [
+    {
+      "hex": "#787878",
+      "name": "concrete grey"
+    },
+    {
+      "hex": "#3878D8",
+      "name": "pool blue"
+    },
+    {
+      "hex": "#F8C830",
+      "name": "grind metal"
+    },
+    {
+      "hex": "#E83020",
+      "name": "graffiti red"
+    },
+    {
+      "hex": "#48B848",
+      "name": "park green"
+    },
+    {
+      "hex": "#F060A0",
+      "name": "90s neon pink"
+    },
+    {
+      "hex": "#A85820",
+      "name": "wood ramp"
+    },
+    {
+      "hex": "#88C8E8",
+      "name": "SoCal sky"
+    }
+  ],
+  "62": [
+    {
+      "hex": "#0070D8",
+      "name": "ocean blue"
+    },
+    {
+      "hex": "#F8C040",
+      "name": "ring gold"
+    },
+    {
+      "hex": "#48B048",
+      "name": "Emerald Coast green"
+    },
+    {
+      "hex": "#88C8E8",
+      "name": "ocean blue"
+    },
+    {
+      "hex": "#FCFCFC",
+      "name": "muzzle white"
+    },
+    {
+      "hex": "#E83020",
+      "name": "shoes red"
+    },
+    {
+      "hex": "#A85820",
+      "name": "Station Sq tan"
+    },
+    {
+      "hex": "#F8E098",
+      "name": "beach sand"
+    }
+  ],
+  "63": [
+    {
+      "hex": "#9BBC0F",
+      "name": "GB pale green"
+    },
+    {
+      "hex": "#8BAC0F",
+      "name": "gameboy mid"
+    },
+    {
+      "hex": "#306230",
+      "name": "GB dark green"
+    },
+    {
+      "hex": "#0F380F",
+      "name": "gameboy dark"
+    },
+    {
+      "hex": "#E83020",
+      "name": "Pok\u00e9dex red"
+    },
+    {
+      "hex": "#1858B0",
+      "name": "rival blue"
+    },
+    {
+      "hex": "#F8C840",
+      "name": "Pikachu yellow"
+    },
+    {
+      "hex": "#88C8E8",
+      "name": "type ice"
+    }
+  ],
+  "64": [
+    {
+      "hex": "#181818",
+      "name": "arena black"
+    },
+    {
+      "hex": "#604838",
+      "name": "arena dust"
+    },
+    {
+      "hex": "#A04020",
+      "name": "rocket orange"
+    },
+    {
+      "hex": "#48B0E8",
+      "name": "rail blue"
+    },
+    {
+      "hex": "#F8C830",
+      "name": "lightning yellow"
+    },
+    {
+      "hex": "#882020",
+      "name": "blood red"
+    },
+    {
+      "hex": "#888888",
+      "name": "metal grey"
+    },
+    {
+      "hex": "#48E048",
+      "name": "armour green"
+    }
+  ]
+}
