@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAccount, useEnsName } from 'wagmi';
 import { mainnet } from 'wagmi/chains';
 import type { BadgeData } from '../components/UserBadge';
+import { fetch6529Identity, MIN_DISPLAY_LEVEL } from './sixtyFiveTwentyNine';
 
 /**
  * The Line roster, fetched lazily from /line-roster.json (built from
@@ -39,10 +40,16 @@ async function fetchRoster(): Promise<Roster> {
 /**
  * useUserBadge — returns the badge state for the connected wallet.
  *
- * Priority (matches session 3 design):
- *   1. ★ LINE ★ / #N    if the wallet is on The Line (lookup against /line-roster.json)
- *   2. ★ LEVEL ★ / N    if 6529 Level data available (TODO in session 4b — currently never fires)
- *   3. ★ HI-SCORE ★ / 69420   fallback
+ * Priority (highest wins):
+ *   1. LINE / N     if the wallet is on The Line (lookup against /line-roster.json)
+ *   2. LEVEL / N    if 6529 API returns an identity with level >= MIN_DISPLAY_LEVEL.
+ *                   Note: 6529's API resolves consolidated wallets — connecting
+ *                   ANY of an identity's wallets returns the same identity, so
+ *                   delegation is handled API-side.
+ *   3. HI-SCORE / 69420   universal fallback
+ *
+ * Important: the badge is informational only. Roll allowance is enforced
+ * by the contract's Merkle root, NOT by what this badge displays.
  *
  * Disconnected wallet: returns the hi-score fallback so the badge still
  * displays something rather than going blank.
@@ -60,22 +67,30 @@ export function useUserBadge(): BadgeData {
         if (!cancelled) setBadge({ kind: 'hi-score', value: 69420 });
         return;
       }
+
+      // === Priority 1: The Line ===
       const roster = await fetchRoster();
       if (cancelled) return;
 
-      // Try the 0x address first (lowercase), then the ENS name (lowercase)
       const addrKey = address.toLowerCase();
       const ensKey = ensName?.toLowerCase();
 
-      const entry = roster[addrKey] ?? (ensKey ? roster[ensKey] : undefined);
-      if (entry) {
-        setBadge({ kind: 'line', value: entry.line });
+      const lineEntry = roster[addrKey] ?? (ensKey ? roster[ensKey] : undefined);
+      if (lineEntry) {
+        setBadge({ kind: 'line', value: lineEntry.line });
         return;
       }
 
-      // Future session 4b: check 6529 Level here.
+      // === Priority 2: 6529 Level ===
+      const identity = await fetch6529Identity(address);
+      if (cancelled) return;
 
-      // No Line, no Level — hi-score fallback
+      if (identity && typeof identity.level === 'number' && identity.level >= MIN_DISPLAY_LEVEL) {
+        setBadge({ kind: 'level', value: identity.level });
+        return;
+      }
+
+      // === Priority 3: HI-SCORE fallback ===
       setBadge({ kind: 'hi-score', value: 69420 });
     })();
 
