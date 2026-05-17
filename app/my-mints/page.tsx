@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { svgPath, type Era } from '../lib/pool';
+import { svgPath, eraDimensionLabel, type Era } from '../lib/pool';
 import { arrange, buildInlineSvg, extractDominantColors } from '../lib/wildpixel';
 import { loadCatalog, findCatalogEntry } from '../lib/catalog';
 import { UserBadge, MOCK_BADGE } from '../components/UserBadge';
@@ -548,7 +548,7 @@ function WorkCard({
           <div className={styles.workTitle}>{work.finalTitle}</div>
           <div className={styles.workStats}>
             <span className={styles.eraTag}>
-              {work.era.toUpperCase()}{work.year ? ` · ${work.year}` : ''}
+              {work.era.toUpperCase()} {eraDimensionLabel(work.era)}
             </span>
             {statusTag}
           </div>
