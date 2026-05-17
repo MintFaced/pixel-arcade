@@ -29,28 +29,13 @@ export default function WizardsPage() {
 
         <div className={styles.content}>
 
-          <section className={styles.section}>
-            <h2 className={styles.h2}>
-              Why Pixels<span className={styles.chapterNum}>01</span>
-            </h2>
-            <p>
-              Arcade games, reduced to their most essential form, are pixels. They lived in the digital realm first — bound to the resolution and color range the hardware of their era could afford. <strong>8-bit</strong> gave way to <strong>16-bit</strong>, <strong>16-bit</strong> to <strong>32-bit</strong>; each generation widened what the screen could carry, and each step also defined what we now recognize as the look of a particular decade.
-            </p>
-            <p>
-              <em>PixelArcade</em> winnows each game down to its essential color palette — sampled from the canonical on-screen palette and arranged into a fixed grid. Painting them shifts the context: from a childhood game to a fine artwork with both personal and shared lineage. We all had our favorite games growing up. That&apos;s the joy I&apos;m trying to recreate here.
-            </p>
-            <p>
-              The reduction itself is a debt to Mondrian, who pulled nature down to lines and primary squares and trusted what remained to do the work. These games asked the same of their hardware out of necessity. The paintings ask it back out of respect.
-            </p>
-          </section>
-
           <div className={styles.pullQuote}>
             &ldquo;AT 20 CENTS A GAME · WE MOSTLY WATCHED&rdquo;
           </div>
 
           <section className={styles.section}>
             <h2 className={styles.h2}>
-              Wizards<span className={styles.chapterNum}>02</span>
+              Wizards<span className={styles.chapterNum}>01</span>
             </h2>
             <p>
               Wizards was the closest arcade to where I grew up. It was literally at the end of our street — a one-minute walk to the right. Still, as an eight-year-old, it felt like longer. We&apos;d always walk after my brother&apos;s bike got nicked from out the front. At twenty cents a game, we mostly watched.
@@ -70,7 +55,7 @@ export default function WizardsPage() {
 
           <section className={styles.section}>
             <h2 className={styles.h2}>
-              The 286 PC<span className={styles.chapterNum}>03</span>
+              The 286 PC<span className={styles.chapterNum}>02</span>
             </h2>
             <p>
               Once Dad brought back a 286 PC from an overseas trip, we suddenly had great games at home. 16-bit on a PC brought an unreal level of detail. I was lucky Dad was a pilot, so he didn&apos;t need convincing to pick up <strong>F-16 Stealth Fighter</strong> — or my favorite, <strong>Wing Commander</strong>.
@@ -89,13 +74,28 @@ export default function WizardsPage() {
 
           <section className={styles.section}>
             <h2 className={styles.h2}>
-              Lunch Breaks<span className={styles.chapterNum}>04</span>
+              Lunch Breaks<span className={styles.chapterNum}>03</span>
             </h2>
             <p>
               <strong>Gran Turismo</strong> was released in 1997. By then I was at uni and had moved on from gaming. Although once I graduated and got a job, a couple of work colleagues and I would head down over lunch to race each other with the full steering wheel and pedals.
             </p>
             <p>
               Then it got serious. We worked in telecoms — and a <strong>Half-Life</strong> group formed. We used the spare bandwidth to set up an audio conference to coordinate. This was when voice calls were still pricey.
+            </p>
+          </section>
+
+          <section className={styles.section}>
+            <h2 className={styles.h2}>
+              Why Pixels<span className={styles.chapterNum}>04</span>
+            </h2>
+            <p>
+              Arcade games, reduced to their most essential form, are pixels. They lived in the digital realm first — bound to the resolution and color range the hardware of their era could afford. <strong>8-bit</strong> gave way to <strong>16-bit</strong>, <strong>16-bit</strong> to <strong>32-bit</strong>; each generation widened what the screen could carry, and each step also defined what we now recognize as the look of a particular decade.
+            </p>
+            <p>
+              <em>PixelArcade</em> winnows each game down to its essential color palette — sampled from the canonical on-screen palette and arranged into a fixed grid. Painting them shifts the context: from a childhood game to a fine artwork with both personal and shared lineage. We all had our favorite games growing up. That&apos;s the joy I&apos;m trying to recreate here.
+            </p>
+            <p>
+              The reduction itself is a debt to Mondrian, who pulled nature down to lines and primary squares and trusted what remained to do the work. These games asked the same of their hardware out of necessity. The paintings ask it back out of respect.
             </p>
           </section>
 
