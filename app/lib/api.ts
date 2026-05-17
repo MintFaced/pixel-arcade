@@ -92,11 +92,14 @@ function delay<T>(value: T, ms = STUB_DELAY_MS): Promise<T> {
  */
 export async function getSession(address: string): Promise<TierInfo> {
   // Mock: pretend everyone is elevated tier with 5 rolls total, 0 used.
-  // Session 4b: real lookup against allowlist + Redis.
+  // Mock: assume connected wallet is standard tier with 3 rolls available.
+  // Session 4b: real lookup against allowlist + Redis to return either:
+  //   - { tier: 'standard', rollsTotal: 3, rollsUsed: <redis count>, proof: [] }
+  //   - { tier: 'elevated', rollsTotal: 5, rollsUsed: <redis count>, proof: [...] }
   void address;
   return delay({
-    tier: 'elevated',
-    rollsTotal: 5,
+    tier: 'standard',
+    rollsTotal: 3,
     rollsUsed: 0,
     proof: [],
   });
