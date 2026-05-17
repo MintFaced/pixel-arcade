@@ -2,7 +2,7 @@
 
 PixelArcade — MintFace's 64-piece 1/1 NFT pixel-painting collection at https://pixelarcade.art.
 
-This repo is mid-conversion from vanilla HTML to Next.js. See **State** below.
+This repo is mid-conversion from vanilla HTML to Next.js. See **State** below..
 
 ## Stack
 
