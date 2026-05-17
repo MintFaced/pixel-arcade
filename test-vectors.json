@@ -1,0 +1,125 @@
+{
+  "encoding": "keccak256(abi.encodePacked(address, uint8 tier))",
+  "sortPairs": true,
+  "hashFunction": "keccak256",
+  "root": "0xee5a46908c3043b910ede259a2ad1cc9907f7a4c7fa065d216e16896b0d1dba7",
+  "depth": 12,
+  "leaf_count": 3073,
+  "samples": [
+    {
+      "index": 0,
+      "address": "0x00172a79a73b9dfd5871a92a0365280186f7eff4",
+      "tier": 1,
+      "expected_leaf": "0x3a21f703a75b5bf04297849e7327bfc0bd7dd2400d5e2d9f67033a01deb083cd",
+      "proof": [
+        "0x08c26c1db33723bbeaac9c97f9d2ce0628a6407d35f96d22a89a3fee64919456",
+        "0x7d43713752671281a089fa5514000788ed935325e5628742839699c79572b78d",
+        "0xfd2e9fe41fcce150d41e14add21cc9aef76aa127011d45bfcdd542c99d785cd0",
+        "0x4b689ec48f6fde7a2d4e60e1016a69dccc7f194f6ea6260d3cb7c911cade7ef6",
+        "0x2a542c7bab32abdf8e9dbde11f39f2f6503f706c6a7035c2151b0b5ba365a58b",
+        "0xe8292940c5e380f13e8baee45005433267841528b322fcd2c71abeca620bb57f",
+        "0xf1ae7134b83023a9fbcb1044133014be94b692016fe2b8e98ecd9bf3c884d471",
+        "0x0ee53d538557d7ee1381c6ca072df61d2c00a47cc13a1be1d7b2deaa6665efd6",
+        "0x3e2890b8185eca09b2e60ac1b1f8499b3fe95eb9693b47271856faacd729da9b",
+        "0xa67c2475376e7f5ee36dc968071e5fbbb4069d87cd1513f4ceeb0df6da7cc060",
+        "0xd512f36875e3815e8827373c2a47b8fb2208bdd6ea5ae519cdf65e450790af7e",
+        "0x1aaa806edf6ed5730698ee22a675d5c70b215325229cc21caf52e9e5b8af10ba"
+      ],
+      "sources": [
+        "6529_group"
+      ]
+    },
+    {
+      "index": 1,
+      "address": "0x001d61493f8f404a0830873a7b95bf9cead58ae2",
+      "tier": 1,
+      "expected_leaf": "0x08c26c1db33723bbeaac9c97f9d2ce0628a6407d35f96d22a89a3fee64919456",
+      "proof": [
+        "0x3a21f703a75b5bf04297849e7327bfc0bd7dd2400d5e2d9f67033a01deb083cd",
+        "0x7d43713752671281a089fa5514000788ed935325e5628742839699c79572b78d",
+        "0xfd2e9fe41fcce150d41e14add21cc9aef76aa127011d45bfcdd542c99d785cd0",
+        "0x4b689ec48f6fde7a2d4e60e1016a69dccc7f194f6ea6260d3cb7c911cade7ef6",
+        "0x2a542c7bab32abdf8e9dbde11f39f2f6503f706c6a7035c2151b0b5ba365a58b",
+        "0xe8292940c5e380f13e8baee45005433267841528b322fcd2c71abeca620bb57f",
+        "0xf1ae7134b83023a9fbcb1044133014be94b692016fe2b8e98ecd9bf3c884d471",
+        "0x0ee53d538557d7ee1381c6ca072df61d2c00a47cc13a1be1d7b2deaa6665efd6",
+        "0x3e2890b8185eca09b2e60ac1b1f8499b3fe95eb9693b47271856faacd729da9b",
+        "0xa67c2475376e7f5ee36dc968071e5fbbb4069d87cd1513f4ceeb0df6da7cc060",
+        "0xd512f36875e3815e8827373c2a47b8fb2208bdd6ea5ae519cdf65e450790af7e",
+        "0x1aaa806edf6ed5730698ee22a675d5c70b215325229cc21caf52e9e5b8af10ba"
+      ],
+      "sources": [
+        "6529_group"
+      ]
+    },
+    {
+      "index": 2,
+      "address": "0x002652b2cebda595da4c2707a83146b5f5b63494",
+      "tier": 1,
+      "expected_leaf": "0x93b472bf295bc040e7c354d372db191f4d6c751d2c38367f1f95aa59e548a01a",
+      "proof": [
+        "0x0d4482e68a06e69f2b425cb5af7a77324727195b7fb7ca011c39e5f4d63e655a",
+        "0x69e7e02e7a27301107dc658c6014a36ae68a299f4b467ef2ef4f35ff97b7d843",
+        "0xfd2e9fe41fcce150d41e14add21cc9aef76aa127011d45bfcdd542c99d785cd0",
+        "0x4b689ec48f6fde7a2d4e60e1016a69dccc7f194f6ea6260d3cb7c911cade7ef6",
+        "0x2a542c7bab32abdf8e9dbde11f39f2f6503f706c6a7035c2151b0b5ba365a58b",
+        "0xe8292940c5e380f13e8baee45005433267841528b322fcd2c71abeca620bb57f",
+        "0xf1ae7134b83023a9fbcb1044133014be94b692016fe2b8e98ecd9bf3c884d471",
+        "0x0ee53d538557d7ee1381c6ca072df61d2c00a47cc13a1be1d7b2deaa6665efd6",
+        "0x3e2890b8185eca09b2e60ac1b1f8499b3fe95eb9693b47271856faacd729da9b",
+        "0xa67c2475376e7f5ee36dc968071e5fbbb4069d87cd1513f4ceeb0df6da7cc060",
+        "0xd512f36875e3815e8827373c2a47b8fb2208bdd6ea5ae519cdf65e450790af7e",
+        "0x1aaa806edf6ed5730698ee22a675d5c70b215325229cc21caf52e9e5b8af10ba"
+      ],
+      "sources": [
+        "line_artists"
+      ]
+    },
+    {
+      "index": 3,
+      "address": "0x002744a6c5c52f435d3f89460a345017c928b0b5",
+      "tier": 1,
+      "expected_leaf": "0x0d4482e68a06e69f2b425cb5af7a77324727195b7fb7ca011c39e5f4d63e655a",
+      "proof": [
+        "0x93b472bf295bc040e7c354d372db191f4d6c751d2c38367f1f95aa59e548a01a",
+        "0x69e7e02e7a27301107dc658c6014a36ae68a299f4b467ef2ef4f35ff97b7d843",
+        "0xfd2e9fe41fcce150d41e14add21cc9aef76aa127011d45bfcdd542c99d785cd0",
+        "0x4b689ec48f6fde7a2d4e60e1016a69dccc7f194f6ea6260d3cb7c911cade7ef6",
+        "0x2a542c7bab32abdf8e9dbde11f39f2f6503f706c6a7035c2151b0b5ba365a58b",
+        "0xe8292940c5e380f13e8baee45005433267841528b322fcd2c71abeca620bb57f",
+        "0xf1ae7134b83023a9fbcb1044133014be94b692016fe2b8e98ecd9bf3c884d471",
+        "0x0ee53d538557d7ee1381c6ca072df61d2c00a47cc13a1be1d7b2deaa6665efd6",
+        "0x3e2890b8185eca09b2e60ac1b1f8499b3fe95eb9693b47271856faacd729da9b",
+        "0xa67c2475376e7f5ee36dc968071e5fbbb4069d87cd1513f4ceeb0df6da7cc060",
+        "0xd512f36875e3815e8827373c2a47b8fb2208bdd6ea5ae519cdf65e450790af7e",
+        "0x1aaa806edf6ed5730698ee22a675d5c70b215325229cc21caf52e9e5b8af10ba"
+      ],
+      "sources": [
+        "6529_group"
+      ]
+    },
+    {
+      "index": 4,
+      "address": "0x002d56ff5f369bf560bdce0c4412a71bbef8ae5e",
+      "tier": 1,
+      "expected_leaf": "0x8ce6504df803d703dc9c2eb3ee7eba32953c9f56db2cf542417ef853e509498c",
+      "proof": [
+        "0x02d7aa8abf348a5d74e23a0a9f8531b8139aa1bf73863884c3d4d48136553e2f",
+        "0xe57a6fe0f7cb2dece02046686f61d883ac0bf76ce17b1a109587c9501e031dc7",
+        "0x9359258f8c6dd129371ca36396693c595db5ee5f218d89a752cb22bc375b58e7",
+        "0x4b689ec48f6fde7a2d4e60e1016a69dccc7f194f6ea6260d3cb7c911cade7ef6",
+        "0x2a542c7bab32abdf8e9dbde11f39f2f6503f706c6a7035c2151b0b5ba365a58b",
+        "0xe8292940c5e380f13e8baee45005433267841528b322fcd2c71abeca620bb57f",
+        "0xf1ae7134b83023a9fbcb1044133014be94b692016fe2b8e98ecd9bf3c884d471",
+        "0x0ee53d538557d7ee1381c6ca072df61d2c00a47cc13a1be1d7b2deaa6665efd6",
+        "0x3e2890b8185eca09b2e60ac1b1f8499b3fe95eb9693b47271856faacd729da9b",
+        "0xa67c2475376e7f5ee36dc968071e5fbbb4069d87cd1513f4ceeb0df6da7cc060",
+        "0xd512f36875e3815e8827373c2a47b8fb2208bdd6ea5ae519cdf65e450790af7e",
+        "0x1aaa806edf6ed5730698ee22a675d5c70b215325229cc21caf52e9e5b8af10ba"
+      ],
+      "sources": [
+        "6529_group"
+      ]
+    }
+  ]
+}
