@@ -501,11 +501,18 @@ function WorkCard({
     );
   }
 
-  const traitDisplay = work.trait ? (
-    <div className={styles.workTrait}>★ {work.trait.toUpperCase()} ★</div>
-  ) : (
-    <div className={`${styles.workTrait} ${styles.workTraitEmpty}`}>★ NOT YET SET ★</div>
-  );
+  // Trait display:
+  //   - Wildpixel awaiting palette → "★ WILD PIXEL ★" in yellow (the collector's blank canvas)
+  //   - Has a trait set → show it normally
+  //   - Otherwise (rare) → "★ NOT YET SET ★" in magenta
+  let traitDisplay: React.ReactNode;
+  if (isWildpixelEmpty) {
+    traitDisplay = <div className={styles.workTrait}>★ WILD PIXEL ★</div>;
+  } else if (work.trait) {
+    traitDisplay = <div className={styles.workTrait}>★ {work.trait.toUpperCase()} ★</div>;
+  } else {
+    traitDisplay = <div className={`${styles.workTrait} ${styles.workTraitEmpty}`}>★ NOT YET SET ★</div>;
+  }
 
   let statusTag: React.ReactNode;
   if (isWildpixelEmpty) {
