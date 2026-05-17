@@ -1,0 +1,26 @@
+.hudLabel {
+  color: var(--neon-cyan);
+  margin-bottom: 8px;
+  letter-spacing: 0.1em;
+  font-family: var(--font-display);
+  font-size: 10px;
+}
+
+.hudValue {
+  font-family: var(--font-screen);
+  font-size: 32px;
+  letter-spacing: 0.02em;
+}
+
+.pink {
+  color: var(--neon-pink);
+  text-shadow: 0 0 12px var(--neon-pink);
+}
+.yellow {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 12px var(--neon-yellow);
+}
+.cyan {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 12px var(--neon-cyan);
+}
