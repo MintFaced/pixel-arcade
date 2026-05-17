@@ -178,7 +178,7 @@ export default function MintPage() {
     stageContent = (
       <RevealedScreen
         game={currentGame}
-        rollsLeftAfter={totalRolls - (rollsUsed + 1)}
+        rollsLeft={rollsLeft}
         isLocked={
           activeRollIdx !== null && rolls[activeRollIdx] ? rolls[activeRollIdx].locked : true
         }
@@ -411,14 +411,14 @@ function RollingScreen({ game, onDone }: { game: PoolGame; onDone: () => void })
    ============================================================ */
 function RevealedScreen({
   game,
-  rollsLeftAfter,
+  rollsLeft,
   isLocked,
   onCommit,
   onToggleLock,
   onRollAgain,
 }: {
   game: PoolGame;
-  rollsLeftAfter: number;
+  rollsLeft: number;
   isLocked: boolean;
   onCommit: () => void;
   onToggleLock: () => void;
@@ -546,9 +546,9 @@ function RevealedScreen({
           <button
             className={`${styles.coinBtn} ${styles.ghost}`}
             onClick={onRollAgain}
-            disabled={rollsLeftAfter <= 0}
+            disabled={rollsLeft <= 0}
           >
-            {rollsLeftAfter <= 0 ? 'NO ROLLS LEFT' : 'ROLL AGAIN ▶'}
+            {rollsLeft <= 0 ? 'NO ROLLS LEFT' : 'ROLL AGAIN ▶'}
           </button>
         </div>
       </div>
