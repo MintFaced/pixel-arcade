@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { svgPath, eraDimensionLabel, type Era } from '../lib/pool';
 import { arrange, buildInlineSvg, extractDominantColors } from '../lib/wildpixel';
 import { loadCatalog, findCatalogEntry } from '../lib/catalog';
-import { UserBadge, MOCK_BADGE } from '../components/UserBadge';
+import { ConnectedUserBadge } from '../components/UserBadge';
+import { WalletStatus } from '../components/WalletStatus';
 import styles from './page.module.css';
 
 /* ============================================================
@@ -299,8 +300,7 @@ export default function MyMintsPage() {
         </div>
         <div className={styles.marqueeStatus}>
           <span className={styles.player1}>PLAYER 1</span>
-          <span className={styles.wallet}>0x7A3F…B9C2</span>
-          <span className={styles.insertcoinTier}>★ TDH WHALE ★</span>
+          <WalletStatus />
         </div>
       </div>
 
@@ -322,7 +322,7 @@ export default function MyMintsPage() {
           </div>
         </div>
         <div className={styles.hudCell}>
-          <UserBadge badge={MOCK_BADGE} />
+          <ConnectedUserBadge />
         </div>
       </div>
 
