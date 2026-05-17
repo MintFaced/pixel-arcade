@@ -7,6 +7,7 @@ import { arrange, buildInlineSvg, extractDominantColors } from '../lib/wildpixel
 import { loadCatalog, findCatalogEntry } from '../lib/catalog';
 import { ConnectedUserBadge } from '../components/UserBadge';
 import { WalletStatus } from '../components/WalletStatus';
+import { ShippingForm } from '../components/ShippingForm';
 import styles from './page.module.css';
 
 /* ============================================================
@@ -74,6 +75,9 @@ export default function MyMintsPage() {
   const [modal, setModal] = useState<WildpixelModalState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [banner, setBanner] = useState<{ count: number; txHash: string } | null>(null);
+  /** After a successful claim, holds the just-paid tokenIds so the drawer
+   *  swaps to the ShippingForm. Cleared once user submits OR closes drawer. */
+  const [paidTokens, setPaidTokens] = useState<{ tokenIds: number[]; txHash: string } | null>(null);
 
   /* ----------------------------------------------------------
      ESC closes drawer or modal — nice keyboard UX
@@ -83,7 +87,7 @@ export default function MyMintsPage() {
       if (e.key !== 'Escape') return;
       // Modal has its own handler, but it doesn't hurt to also close drawer
       // from here; if both were open, this hits drawer first which is fine.
-      if (drawerOpen) setDrawerOpen(false);
+      if (drawerOpen) closeDrawer();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -226,18 +230,33 @@ export default function MyMintsPage() {
   }, [works]);
 
   /* ----------------------------------------------------------
-     Checkout — flip selected works to physical, close drawer
+     Checkout — flip selected works to physical, swap drawer to shipping form
      ---------------------------------------------------------- */
   const handleCheckout = useCallback(() => {
-    const selectedIds = Array.from(selected);
-    if (selectedIds.length === 0) return;
+    const selectedWorks = works.filter((w) => selected.has(w.id));
+    if (selectedWorks.length === 0) return;
+    const tokenIds = selectedWorks.map((w) => w.tokenId);
     setWorks((prev) =>
       prev.map((w) => (selected.has(w.id) ? { ...w, physical: true } : w))
     );
     setSelected(new Set());
+    // Mock tx hash — session 4b: real payment tx hash from useWriteContract
+    const txHash = '0x' + Math.random().toString(16).slice(2, 10) + '…' + Math.random().toString(16).slice(2, 6);
+    setPaidTokens({ tokenIds, txHash });
+    setToast(`★ ORDER CONFIRMED · ${tokenIds.length} QUEUED · SHIPPING DETAILS BELOW ★`);
+  }, [selected, works]);
+
+  /* ----------------------------------------------------------
+     Drawer close — also clears any pending shipping form
+     ---------------------------------------------------------- */
+  const closeDrawer = useCallback(() => {
     setDrawerOpen(false);
-    setToast(`★ ORDER CONFIRMED · ${selectedIds.length} QUEUED ★`);
-  }, [selected]);
+    // Clear paid state on close — if user dismisses without submitting, we
+    // re-prompt next time they open the drawer? No: they've already paid,
+    // they can submit shipping later via a future entry point. For now,
+    // clearing keeps the drawer behavior predictable.
+    setPaidTokens(null);
+  }, []);
 
   /* ----------------------------------------------------------
      Wildpixel modal — open with fresh state
@@ -396,13 +415,14 @@ export default function MyMintsPage() {
       {/* Drawer for physical claim */}
       <div
         className={`${styles.drawerBackdrop} ${drawerOpen ? styles.drawerOpen : ''}`}
-        onClick={() => setDrawerOpen(false)}
+        onClick={closeDrawer}
       />
       <Drawer
         open={drawerOpen}
         works={works}
         selected={selected}
-        onClose={() => setDrawerOpen(false)}
+        paidTokens={paidTokens}
+        onClose={closeDrawer}
         onRemove={(id) => toggleSelect(id)}
         onCheckout={handleCheckout}
       />
@@ -569,11 +589,12 @@ function WorkCard({
    Drawer — physical claim cart
    ============================================================ */
 function Drawer({
-  open, works, selected, onClose, onRemove, onCheckout,
+  open, works, selected, paidTokens, onClose, onRemove, onCheckout,
 }: {
   open: boolean;
   works: Work[];
   selected: Set<string>;
+  paidTokens: { tokenIds: number[]; txHash: string } | null;
   onClose: () => void;
   onRemove: (id: string) => void;
   onCheckout: () => void;
@@ -583,6 +604,30 @@ function Drawer({
   const ship = selectedWorks.reduce((s, w) => s + PRICES[w.era].shipping, 0);
   const savings = selectedWorks.length >= BUNDLE_THRESHOLD ? BUNDLE_SHIPPING_SAVED : 0;
   const grand = subTot + ship - savings;
+
+  // Post-payment: swap to shipping form
+  if (paidTokens) {
+    return (
+      <aside className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`}>
+        <div className={styles.drawerHead}>
+          <div>
+            <div className={styles.drawerEyebrow}>▼ PAYMENT CONFIRMED ▼</div>
+            <h2 className={styles.drawerH2}>WHERE TO SHIP</h2>
+          </div>
+          <button className={styles.closeBtn} onClick={onClose} aria-label="Close">X</button>
+        </div>
+        <div className={styles.drawerBody}>
+          <ShippingForm
+            tokenIds={paidTokens.tokenIds}
+            paymentTxHash={paidTokens.txHash}
+            onSubmitted={() => {
+              // Stay in success state — user dismisses with X
+            }}
+          />
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`}>
