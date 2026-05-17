@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useAccount } from 'wagmi';
+import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { POOL, MINT_PRICE, POOL_TOTAL, svgPath, eraClass, type PoolGame } from '../lib/pool';
 import { fetchSvgArrangement } from '../lib/svgArrangement';
 import CrtPowerOn from '../components/CrtPowerOn';
+import { WalletStatus } from '../components/WalletStatus';
 import styles from './page.module.css';
 
 type Phase = 'idle' | 'rolling' | 'revealed';
@@ -43,7 +46,11 @@ export default function MintPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [successInfo, setSuccessInfo] = useState<{ count: number; txHash: string } | null>(null);
 
-  const totalRolls = 5; // TODO: derive from tier when wallet wiring is in
+  // Wallet state — required before rolling
+  const { isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
+
+  const totalRolls = 5; // TODO: derive from tier when backend wiring is in (session 4b)
   const rollsUsed = rolls.length;
   const rollsLeft = totalRolls - rollsUsed;
   const poolRemaining = Math.max(0, POOL_TOTAL - usedGameIds.size);
@@ -61,6 +68,11 @@ export default function MintPage() {
      Roll lifecycle — rolling phase → revealed phase
      ---------------------------------------------------------- */
   const startRoll = useCallback(() => {
+    // Gate on wallet connection — if not connected, open the picker instead of rolling
+    if (!isConnected) {
+      openConnectModal?.();
+      return;
+    }
     if (rollsLeft <= 0) return;
     if (phase === 'rolling') return; // ignore double-clicks during animation
 
@@ -78,7 +90,7 @@ export default function MintPage() {
     });
     setCurrentGame(picked);
     setPhase('rolling');
-  }, [phase, rollsLeft, usedGameIds]);
+  }, [isConnected, openConnectModal, phase, rollsLeft, usedGameIds]);
 
   /**
    * When the rolling animation finishes (handled by RollingScreen via callback),
@@ -186,8 +198,8 @@ export default function MintPage() {
         </div>
         <div className={styles.marqueeStatus}>
           <span className={styles.player1}>PLAYER 1</span>
-          <span className={styles.wallet}>0x7A3F…B9C2</span>
-          <span className={styles.tierBadge}>★ TDH WHALE · 5 ROLLS ★</span>
+          <WalletStatus />
+          <ConnectedRollsBadge rollsLeft={rollsLeft} />
         </div>
       </div>
 
@@ -649,5 +661,24 @@ function SuccessOverlay({ count, txHash }: { count: number; txHash: string }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ============================================================
+   ConnectedRollsBadge — shows "★ N ROLLS REMAINING ★" only when wallet is connected
+   Tier name lookup wires in session 4b once the backend can resolve
+   address → tier from the proofs.json + signed allowance.
+   ============================================================ */
+function ConnectedRollsBadge({ rollsLeft }: { rollsLeft: number }) {
+  const { isConnected } = useAccount();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  // Hide during SSR + before connection — avoids hydration mismatch and
+  // also doesn't display a roll allowance for non-connected visitors.
+  if (!mounted || !isConnected) return null;
+  return (
+    <span className={styles.tierBadge}>
+      ★ {rollsLeft} ROLL{rollsLeft !== 1 ? 'S' : ''} REMAINING ★
+    </span>
   );
 }
