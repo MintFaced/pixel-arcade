@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid meet" role="img" aria-label="WILDPIXEL · Eight-Bit Study No. 12 · awaiting palette">
+  <title>WILDPIXEL · Eight-Bit Study No. 12 · awaiting palette</title>
+  <desc>Wildpixel slot · palette to be completed by the collector.</desc>
+
+  <defs>
+    <pattern id="diagStripes" patternUnits="userSpaceOnUse" width="40" height="40" patternTransform="rotate(45)">
+      <rect width="40" height="40" fill="#1a0033"/>
+      <rect x="0" y="0" width="40" height="20" fill="#0d0220"/>
+    </pattern>
+    <pattern id="scanPattern" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="4" height="2" fill="rgba(0,0,0,0)"/>
+      <rect x="0" y="2" width="4" height="2" fill="rgba(0,0,0,0.45)"/>
+    </pattern>
+    <radialGradient id="vig" cx="50%" cy="50%" r="70%">
+      <stop offset="60%" stop-color="rgb(0,0,0)" stop-opacity="0"/>
+      <stop offset="100%" stop-color="rgb(0,0,0)" stop-opacity="0.45"/>
+    </radialGradient>
+    <radialGradient id="rim" cx="50%" cy="50%" r="55%">
+      <stop offset="70%" stop-color="rgb(0,0,0)" stop-opacity="0"/>
+      <stop offset="100%" stop-color="rgb(203,2,178)" stop-opacity="0.35"/>
+    </radialGradient>
+  </defs>
+
+  <style><![CDATA[
+    .insert-game {
+      animation: blink 0.6s steps(2) infinite;
+    }
+    .awaiting {
+      animation: blinkSlow 1.2s steps(2) infinite;
+    }
+    @keyframes blink     { 50% { opacity: 0; } }
+    @keyframes blinkSlow { 50% { opacity: 0.4; } }
+
+    .scanlines {
+      pointer-events: none;
+      mix-blend-mode: multiply;
+      animation: scanScroll 8s linear infinite;
+    }
+    @keyframes scanScroll {
+      from { transform: translateY(0); }
+      to   { transform: translateY(8px); }
+    }
+
+    .sweep {
+      pointer-events: none;
+      animation: sweepDown 6s linear infinite;
+    }
+    @keyframes sweepDown {
+      0%   { transform: translateY(-100%); opacity: 0.0; }
+      10%  { opacity: 0.5; }
+      90%  { opacity: 0.5; }
+      100% { transform: translateY(100%); opacity: 0.0; }
+    }
+
+    .stripes-rim {
+      animation: rimPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes rimPulse {
+      0%, 100% { opacity: 1.0; }
+      50%      { opacity: 0.7; }
+    }
+  ]]></style>
+
+  <!-- Background void -->
+  <rect width="800" height="400" fill="#080210"/>
+
+  <!-- Diagonal stripe pattern -->
+  <rect x="0" y="0" width="800" height="400" fill="url(#diagStripes)"/>
+
+  <!-- Magenta border / inset frame -->
+  <rect class="stripes-rim" x="8" y="8" width="784" height="384"
+        fill="none" stroke="#CB02B2" stroke-width="6"/>
+
+  <!-- Centered text block -->
+  <g text-anchor="middle" font-family="'Press Start 2P', monospace">
+    <text class="insert-game" x="400.0" y="160.0"
+          font-size="80" fill="#FFF000"
+          style="filter: drop-shadow(0 0 14px #FFF000);">★ INSERT GAME ★</text>
+    <text class="awaiting" x="400.0" y="240.0"
+          font-size="33" fill="#FF1AD9"
+          style="filter: drop-shadow(0 0 10px #FF1AD9);">AWAITING PALETTE</text>
+    <text x="400.0" y="360.0"
+          font-size="23" fill="#00fff0" letter-spacing="4">
+      8-BIT · WILDPIXEL
+    </text>
+  </g>
+
+  <!-- Scrolling scanlines -->
+  <g class="scanlines">
+    <rect x="0" y="-8" width="800" height="416" fill="url(#scanPattern)"/>
+  </g>
+
+  <!-- Sweep band -->
+  <g class="sweep">
+    <rect x="0" y="0" width="800" height="100" fill="rgba(255,255,255,0.06)"/>
+  </g>
+
+  <!-- Magenta rim glow + vignette -->
+  <rect width="800" height="400" fill="url(#rim)" pointer-events="none"/>
+  <rect width="800" height="400" fill="url(#vig)" pointer-events="none"/>
+</svg>

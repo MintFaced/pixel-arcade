@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Pitfall! · Eight-Bit Study No. 1">
-  <title>Pitfall! · Eight-Bit Study No. 1</title>
-  <desc>1/1 pixel painting · color palette derived from a 1982 Activision game.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Asteroids · Eight-Bit Study No. 5">
+  <title>Asteroids · Eight-Bit Study No. 5</title>
+  <desc>1/1 pixel painting · color palette derived from a 1979 Atari game.</desc>
 
   <defs>
     <pattern id="scanPattern" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
@@ -90,38 +90,38 @@
 
   <!-- Cyan channel ghost — drifts left -->
   <g class="ch-cyan">
-    <rect class="ghost" x="0" y="0" width="200" height="200" fill="#000000"/>
-    <rect class="ghost" x="200" y="0" width="200" height="200" fill="#F0E090"/>
-    <rect class="ghost" x="400" y="0" width="200" height="200" fill="#D04848"/>
-    <rect class="ghost" x="600" y="0" width="200" height="200" fill="#286800"/>
-    <rect class="ghost" x="0" y="200" width="200" height="200" fill="#A8732C"/>
-    <rect class="ghost" x="200" y="200" width="200" height="200" fill="#3060B0"/>
-    <rect class="ghost" x="400" y="200" width="200" height="200" fill="#84D070"/>
-    <rect class="ghost" x="600" y="200" width="200" height="200" fill="#F0A878"/>
+    <rect class="ghost" x="0" y="0" width="200" height="200" fill="#C8C8C8"/>
+    <rect class="ghost" x="200" y="0" width="200" height="200" fill="#1C1C2C"/>
+    <rect class="ghost" x="400" y="0" width="200" height="200" fill="#FFD800"/>
+    <rect class="ghost" x="600" y="0" width="200" height="200" fill="#808080"/>
+    <rect class="ghost" x="0" y="200" width="200" height="200" fill="#000000"/>
+    <rect class="ghost" x="200" y="200" width="200" height="200" fill="#FFFFFF"/>
+    <rect class="ghost" x="400" y="200" width="200" height="200" fill="#0A2A88"/>
+    <rect class="ghost" x="600" y="200" width="200" height="200" fill="#C81818"/>
   </g>
 
   <!-- Red channel ghost — drifts right -->
   <g class="ch-red">
-    <rect class="ghost" x="0" y="0" width="200" height="200" fill="#000000"/>
-    <rect class="ghost" x="200" y="0" width="200" height="200" fill="#F0E090"/>
-    <rect class="ghost" x="400" y="0" width="200" height="200" fill="#D04848"/>
-    <rect class="ghost" x="600" y="0" width="200" height="200" fill="#286800"/>
-    <rect class="ghost" x="0" y="200" width="200" height="200" fill="#A8732C"/>
-    <rect class="ghost" x="200" y="200" width="200" height="200" fill="#3060B0"/>
-    <rect class="ghost" x="400" y="200" width="200" height="200" fill="#84D070"/>
-    <rect class="ghost" x="600" y="200" width="200" height="200" fill="#F0A878"/>
+    <rect class="ghost" x="0" y="0" width="200" height="200" fill="#C8C8C8"/>
+    <rect class="ghost" x="200" y="0" width="200" height="200" fill="#1C1C2C"/>
+    <rect class="ghost" x="400" y="0" width="200" height="200" fill="#FFD800"/>
+    <rect class="ghost" x="600" y="0" width="200" height="200" fill="#808080"/>
+    <rect class="ghost" x="0" y="200" width="200" height="200" fill="#000000"/>
+    <rect class="ghost" x="200" y="200" width="200" height="200" fill="#FFFFFF"/>
+    <rect class="ghost" x="400" y="200" width="200" height="200" fill="#0A2A88"/>
+    <rect class="ghost" x="600" y="200" width="200" height="200" fill="#C81818"/>
   </g>
 
   <!-- Primary layer — carries per-pixel twitch -->
   <g class="primary">
-    <rect class="px" x="0" y="0" width="200" height="200" fill="#000000"/>
-    <rect class="px" x="200" y="0" width="200" height="200" fill="#F0E090"/>
-    <rect class="px" x="400" y="0" width="200" height="200" fill="#D04848"/>
-    <rect class="px" x="600" y="0" width="200" height="200" fill="#286800"/>
-    <rect class="px" x="0" y="200" width="200" height="200" fill="#A8732C"/>
-    <rect class="px" x="200" y="200" width="200" height="200" fill="#3060B0"/>
-    <rect class="px" x="400" y="200" width="200" height="200" fill="#84D070"/>
-    <rect class="px" x="600" y="200" width="200" height="200" fill="#F0A878"/>
+    <rect class="px" x="0" y="0" width="200" height="200" fill="#C8C8C8"/>
+    <rect class="px" x="200" y="0" width="200" height="200" fill="#1C1C2C"/>
+    <rect class="px" x="400" y="0" width="200" height="200" fill="#FFD800"/>
+    <rect class="px" x="600" y="0" width="200" height="200" fill="#808080"/>
+    <rect class="px" x="0" y="200" width="200" height="200" fill="#000000"/>
+    <rect class="px" x="200" y="200" width="200" height="200" fill="#FFFFFF"/>
+    <rect class="px" x="400" y="200" width="200" height="200" fill="#0A2A88"/>
+    <rect class="px" x="600" y="200" width="200" height="200" fill="#C81818"/>
   </g>
 
   <!-- Scrolling scanlines -->
