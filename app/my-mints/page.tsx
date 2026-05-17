@@ -496,7 +496,7 @@ function WorkCard({
       <img
         className={`${styles.workSvg} ${styles[cls]}`}
         src={svgPath(work.tokenId)}
-        alt={work.trait ?? 'Awaiting palette'}
+        alt={work.trait ?? 'Choose your own palette'}
       />
     );
   }
@@ -755,7 +755,7 @@ function WildpixelModal({
       <div className={styles.modal} role="dialog" aria-modal="true">
         <div className={styles.modalHead}>
           <div>
-            <div className={styles.modalEyebrow}>▼ WILDPIXEL · AWAITING PALETTE ▼</div>
+            <div className={styles.modalEyebrow}>▼ WILDPIXEL · CHOOSE YOUR OWN PALETTE ▼</div>
             <h2 className={styles.modalH2}>COMPLETE WILDPIXEL</h2>
           </div>
           <button className={styles.closeBtn} onClick={onClose} aria-label="Close">X</button>
