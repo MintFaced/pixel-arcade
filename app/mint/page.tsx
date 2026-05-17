@@ -6,6 +6,7 @@ import { useAccount } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { POOL, MINT_PRICE, POOL_TOTAL, svgPath, eraClass, type PoolGame } from '../lib/pool';
 import { fetchSvgArrangement } from '../lib/svgArrangement';
+import { useUserTier } from '../lib/useUserTier';
 import CrtPowerOn from '../components/CrtPowerOn';
 import { WalletStatus } from '../components/WalletStatus';
 import styles from './page.module.css';
@@ -49,8 +50,11 @@ export default function MintPage() {
   // Wallet state — required before rolling
   const { isConnected } = useAccount();
   const { openConnectModal } = useConnectModal();
-
-  const totalRolls = 5; // TODO: derive from tier when backend wiring is in (session 4b)
+  // Tier resolves the connected wallet's roll allowance:
+  //   - elevated tier (in proofs.json) = 5 rolls
+  //   - standard tier (everyone else) = 3 rolls
+  // Pre-connection or while proofs.json loads, defaults to standard (3).
+  const { rollsPerDay: totalRolls } = useUserTier();
   const rollsUsed = rolls.length;
   const rollsLeft = totalRolls - rollsUsed;
   const poolRemaining = Math.max(0, POOL_TOTAL - usedGameIds.size);
