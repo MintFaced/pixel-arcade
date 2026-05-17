@@ -32,15 +32,8 @@ const LABELS: Record<BadgeKind, string> = {
   'hi-score': 'HI-SCORE',
 };
 
-const PREFIXES: Record<BadgeKind, string> = {
-  'line': '#',
-  'level': '',
-  'hi-score': '',
-};
-
 export function UserBadge({ badge }: { badge: BadgeData }) {
   const label = LABELS[badge.kind];
-  const prefix = PREFIXES[badge.kind];
   // Hi-score uses pink, line uses yellow (curated/special), level uses cyan
   const colorClass =
     badge.kind === 'hi-score'
@@ -50,9 +43,9 @@ export function UserBadge({ badge }: { badge: BadgeData }) {
         : styles.cyan;
   return (
     <>
-      <div className={styles.hudLabel}>★ {label} ★</div>
+      <div className={styles.hudLabel}>{label}</div>
       <div className={`${styles.hudValue} ${colorClass}`}>
-        {prefix}{badge.value}
+        {badge.value}
       </div>
     </>
   );
