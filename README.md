@@ -28,17 +28,35 @@ npm run start        # serve production build
 - ✅ Password gate (sessionStorage, `arcade26`)
 - ✅ `/` — landing page (cabinets + footer + wizards link)
 - ✅ `/wizards` — lineage / chapter story page
+- ✅ `/mint` — slot animation, pool state, session tray, walk-away band, post-mint hand-off
+- ✅ `/my-mints` — gallery, filters, drawer for physical claim, wildpixel modal with k-means, post-mint banner
+- ✅ CRT power-on overlay (plays once per session)
 
-**Not yet converted (still in `legacy/` for reference):**
+**Wallet integration (session 4a — wallet UX foundations):**
 
-- ❌ `/mint` — slot animation, pool state, session tray, walk-away modal
-- ❌ `/my-mints` — drawers, wildpixel modal with k-means, post-mint banner
+- ✅ RainbowKit + wagmi + viem + react-query installed
+- ✅ Sepolia chain config for dev/test; Mainnet for read-only ENS resolution
+- ✅ Web3Providers wraps app with CRT-themed RainbowKit dark theme
+- ✅ Real wallet connect button replaces mocked `0x7A3F…B9C2` on mint + my-mints
+- ✅ ENS resolution via `useEnsName` — connected wallets display ENS where available
+- ✅ Mint flow gated on wallet — clicking PLAY when disconnected opens the connect modal
+- ✅ Real Line lookup — 731 wallet entries from `theline.wtf` roster, badge shows ★ LINE ★ #N if connected wallet is on The Line, otherwise ★ HI-SCORE ★ 69420
+- ✅ API client stubs (`lib/api.ts`) with typed interfaces for `/api/roll`, `/api/lock`, `/api/mint-authorization` — return mock data so UI keeps working
 
-**Not yet wired:**
+**Not yet wired (session 4b, blocked on Yungwknd contract + backend build):**
 
-- ❌ Wallet connect (RainbowKit + wagmi + viem + SIWE)
-- ❌ Backend API (signing server, roll endpoints)
 - ❌ Real contract calls (`batchMint`, `claimPhysical`, `completeWildpixel`)
+- ❌ Backend signing endpoints (replace `lib/api.ts` stubs)
+- ❌ SIWE auth flow
+- ❌ On-chain reads to replace post-mint sessionStorage handoff
+- ❌ 6529 Level data integration
+
+## Environment variables
+
+Copy `.env.local.example` to `.env.local` and fill in:
+
+- `NEXT_PUBLIC_WC_PROJECT_ID` — WalletConnect project ID from https://cloud.walletconnect.com. Required for mobile wallet deep-linking and QR codes. Without it, only browser-injected wallets (MetaMask, Rabby) work.
+- `NEXT_PUBLIC_ALCHEMY_KEY` — optional. Replaces public RPCs with Alchemy.
 
 ## Static assets
 
