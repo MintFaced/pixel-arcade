@@ -531,7 +531,9 @@ function RevealedScreen({
       </div>
 
       <div className={styles.infoSide}>
-        <div className={styles.gameTrait}>★ {game.trait.toUpperCase()} ★</div>
+        <div className={styles.gameTrait}>
+          ★ {game.wildpixel ? 'WILD PIXEL' : game.trait.toUpperCase()} ★
+        </div>
         <div className={styles.gameFinalTitle}>{game.finalTitle}</div>
         <div className={styles.gameYear}>
           {game.era.toUpperCase()} · {game.year}
@@ -599,7 +601,9 @@ function Tray({
                   alt={r.game.trait}
                 />
                 <div className={styles.traySlotMeta}>
-                  <div className={styles.traySlotTitle}>{r.game.trait.toUpperCase()}</div>
+                  <div className={styles.traySlotTitle}>
+                    {r.game.wildpixel ? 'WILD PIXEL' : r.game.trait.toUpperCase()}
+                  </div>
                   <div className={styles.traySlotStatus}>{r.locked ? '● LOCKED' : '○ HELD'}</div>
                 </div>
               </div>
