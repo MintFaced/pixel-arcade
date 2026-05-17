@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import Gate from './components/Gate';
 import CrtOverlays from './components/CrtOverlays';
+import { Web3Providers } from './components/Web3Providers';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -36,9 +37,11 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: preHydrationScript }} />
       </head>
       <body>
-        <Gate />
-        <CrtOverlays />
-        {children}
+        <Web3Providers>
+          <Gate />
+          <CrtOverlays />
+          {children}
+        </Web3Providers>
       </body>
     </html>
   );
