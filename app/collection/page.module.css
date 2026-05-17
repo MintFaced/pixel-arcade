@@ -360,6 +360,67 @@
   text-shadow: 0 0 6px var(--neon-green);
 }
 
+/* ============================================================
+   Palette swatches (in detail modal)
+   ============================================================ */
+.paletteSection {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.paletteLabel {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: var(--face-pink);
+  text-shadow: 0 0 6px var(--face-pink);
+  letter-spacing: 0.15em;
+  margin-bottom: 14px;
+  text-align: center;
+}
+.paletteList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.paletteItem {
+  display: grid;
+  grid-template-columns: 28px 110px 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: var(--font-screen);
+  font-size: 14px;
+  transition: border-color 0.12s;
+}
+.paletteItem:hover {
+  border-color: rgba(0, 255, 240, 0.4);
+}
+.paletteSwatch {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+}
+.paletteHex {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 4px var(--neon-cyan);
+  letter-spacing: 0.05em;
+}
+.paletteName {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 4px var(--neon-yellow);
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
 @media (max-width: 600px) {
   .marquee {
     grid-template-columns: 1fr 1fr;
@@ -372,4 +433,9 @@
   }
   .modal { padding: 20px; }
   .modalTitle { font-size: 22px; }
+  .paletteItem {
+    grid-template-columns: 24px 96px 1fr;
+    gap: 10px;
+    font-size: 13px;
+  }
 }

@@ -176,6 +176,71 @@ export default function CollectionPage() {
 }
 
 /* ============================================================
+   Palette data — combines catalog.json swatches with the poetic
+   names from palette-names.json. Lazy-loaded the first time a
+   detail modal opens.
+   ============================================================ */
+
+interface PaletteSwatch {
+  hex: string;
+  /** Poetic name from palette-names.json, e.g. "jungle bg", "Harry skin" */
+  name: string | null;
+}
+
+interface CatalogEntry {
+  token_id: number;
+  swatches: string[];
+}
+
+let cachedCatalog: Record<number, string[]> | null = null;
+let cachedNames: Record<number, { hex: string; name: string }[]> | null = null;
+let paletteLoadPromise: Promise<void> | null = null;
+
+async function ensurePaletteData(): Promise<void> {
+  if (cachedCatalog && cachedNames) return;
+  if (paletteLoadPromise) return paletteLoadPromise;
+  paletteLoadPromise = (async () => {
+    try {
+      const [catalogResp, namesResp] = await Promise.all([
+        fetch('/svg/catalog.json', { cache: 'force-cache' }),
+        fetch('/palette-names.json', { cache: 'force-cache' }),
+      ]);
+      if (catalogResp.ok) {
+        const cat = (await catalogResp.json()) as CatalogEntry[];
+        cachedCatalog = {};
+        for (const e of cat) cachedCatalog[e.token_id] = e.swatches;
+      } else {
+        cachedCatalog = {};
+      }
+      if (namesResp.ok) {
+        cachedNames = (await namesResp.json()) as Record<number, { hex: string; name: string }[]>;
+      } else {
+        cachedNames = {};
+      }
+    } catch {
+      cachedCatalog = cachedCatalog ?? {};
+      cachedNames = cachedNames ?? {};
+    }
+  })();
+  return paletteLoadPromise;
+}
+
+function getPalette(tokenId: number): PaletteSwatch[] {
+  const swatches = cachedCatalog?.[tokenId];
+  if (!swatches) return [];
+  // Build a hex→name lookup from the names file (case-insensitive)
+  const nameEntries = cachedNames?.[tokenId] ?? [];
+  const nameByHex: Record<string, string> = {};
+  for (const ne of nameEntries) {
+    nameByHex[ne.hex.toLowerCase()] = ne.name;
+  }
+  return swatches.map((hex) => ({
+    hex,
+    name: nameByHex[hex.toLowerCase()] ?? null,
+  }));
+}
+
+/* ============================================================
    Detail modal — token metadata + owner display
    ============================================================ */
 
@@ -188,6 +253,17 @@ function DetailModal({
   info: ClaimInfo;
   onClose: () => void;
 }) {
+  const [palette, setPalette] = useState<PaletteSwatch[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await ensurePaletteData();
+      if (!cancelled) setPalette(getPalette(game.tokenId));
+    })();
+    return () => { cancelled = true; };
+  }, [game.tokenId]);
+
   return (
     <div className={styles.modalBackdrop} onClick={onClose}>
       <div
@@ -253,6 +329,25 @@ function DetailModal({
               </div>
             )}
           </dl>
+
+          {palette && palette.length > 0 && (
+            <div className={styles.paletteSection}>
+              <div className={styles.paletteLabel}>★ PALETTE ★</div>
+              <ul className={styles.paletteList}>
+                {palette.map((sw, i) => (
+                  <li key={`${sw.hex}-${i}`} className={styles.paletteItem}>
+                    <span
+                      className={styles.paletteSwatch}
+                      style={{ background: sw.hex }}
+                      aria-hidden="true"
+                    />
+                    <span className={styles.paletteHex}>{sw.hex.toUpperCase()}</span>
+                    {sw.name && <span className={styles.paletteName}>{sw.name}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </div>
