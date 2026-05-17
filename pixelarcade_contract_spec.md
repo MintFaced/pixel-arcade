@@ -254,6 +254,8 @@ The MintFace backend (Node.js / Python / whatever) handles:
 - Default to `standard`
 - Tier → `rollsPerDay`: standard=3, whale=5, line-artist=5
 
+**On-chain Merkle root semantics:** the allowlist Merkle root contains ONLY elevated-tier addresses (tier 1, 5 rolls/day). All 3,073 addresses currently in the tree are tier 1 — the union of `whale` and `line-artist` deduped. Standard-tier (3 rolls/day) is the default for any wallet that fails the Merkle proof check. There's no tier-0 leaf in the tree; absence from the tree = standard tier. The backend signing key authorizes both tiers' mint authorizations; the tier field in the signed payload tells the contract how to apply the proof (or skip it for tier 0).
+
 ### 7.2 Daily roll allowance enforcement
 - Redis key: `rolls:{walletAddress}:{utcDate}` storing `{used: int, remaining: int}`
 - Resets at UTC midnight (per spec §9 — confirm with artist)
