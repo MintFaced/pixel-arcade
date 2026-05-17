@@ -1,0 +1,177 @@
+/* CRT Power-on overlay — ported from mint.html legacy.
+   Plays as a sequenced animation: line snap → expand → bloom → RGB → boot text. */
+
+.crtPoweron {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 10000;
+  pointer-events: auto;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.crtPoweron.done {
+  animation: poweronFadeOut 0.4s steps(4) forwards;
+  pointer-events: none;
+}
+@keyframes poweronFadeOut {
+  to { opacity: 0; }
+}
+
+/* Stage 1: horizontal line snaps in (~0.15s) then expands to fill (~0.5s) */
+.crtLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #fff;
+  box-shadow: 0 0 20px #fff, 0 0 40px var(--neon-cyan);
+  transform: scaleX(0);
+  animation:
+    lineSnap 0.25s steps(2) 0.15s forwards,
+    lineExpand 0.5s cubic-bezier(0.5, 0, 0.5, 1) 0.5s forwards;
+}
+@keyframes lineSnap {
+  0%   { transform: scaleX(0); }
+  50%  { transform: scaleX(1.05); }
+  100% { transform: scaleX(1); }
+}
+@keyframes lineExpand {
+  0%   { height: 2px; }
+  60%  { height: 130%; }
+  100% { height: 100%; }
+}
+
+/* Stage 2: bloom — overexposed white wash (~0.85s) */
+.crtBloom {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  animation: bloom 0.5s steps(3) 0.85s forwards;
+}
+@keyframes bloom {
+  0%   { opacity: 0; }
+  30%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Stage 3: RGB channel separation (~1.2s) */
+.crtRgb {
+  position: absolute;
+  inset: 0;
+  display: none;
+  z-index: 2;
+}
+.crtRgb.show {
+  display: block;
+}
+.channel {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 4px,
+    currentColor 4px,
+    currentColor 5px
+  );
+  opacity: 0.6;
+  mix-blend-mode: screen;
+}
+.r { color: var(--neon-red);   animation: chR 0.6s steps(6) forwards; }
+.g { color: var(--neon-green); animation: chG 0.6s steps(6) forwards; }
+.b { color: var(--neon-cyan);  animation: chB 0.6s steps(6) forwards; }
+@keyframes chR {
+  0%   { transform: translateX(-30px); opacity: 0.8; }
+  100% { transform: translateX(0); opacity: 0; }
+}
+@keyframes chG {
+  0%   { transform: translateX(0); opacity: 0.6; }
+  100% { transform: translateX(0); opacity: 0; }
+}
+@keyframes chB {
+  0%   { transform: translateX(30px); opacity: 0.8; }
+  100% { transform: translateX(0); opacity: 0; }
+}
+
+/* Stage 4: boot text (~1.8s) */
+.crtBootText {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  opacity: 0;
+  animation: bootTextIn 0.3s steps(4) 1.8s forwards;
+}
+@keyframes bootTextIn { to { opacity: 1; } }
+
+.crtBootTitle {
+  font-family: var(--font-display);
+  font-size: clamp(20px, 4vw, 36px);
+  color: var(--neon-yellow);
+  letter-spacing: 0.06em;
+  text-shadow:
+    2px 0 0 var(--neon-red),
+    -2px 0 0 var(--neon-cyan),
+    0 0 30px var(--neon-yellow);
+  margin-bottom: 14px;
+  animation: chromaShift 1s ease-in-out infinite;
+}
+@keyframes chromaShift {
+  0%, 100% { text-shadow: 2px 0 0 var(--neon-red), -2px 0 0 var(--neon-cyan), 0 0 30px var(--neon-yellow); }
+  50%      { text-shadow: -3px 0 0 var(--neon-red), 3px 0 0 var(--neon-cyan), 0 0 40px var(--neon-yellow); }
+}
+
+.crtBootSub {
+  font-family: var(--font-screen);
+  font-size: 20px;
+  color: var(--neon-green);
+  text-shadow: 0 0 12px var(--neon-green);
+  letter-spacing: 0.04em;
+}
+.crtBootSub::after {
+  content: "_";
+  animation: blink 0.4s steps(2) infinite;
+}
+
+/* persistent scanlines on the overlay itself */
+.crtPoweron::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    rgba(0,0,0,0.4) 3px,
+    rgba(0,0,0,0.4) 4px
+  );
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Skip button */
+.crtSkip {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10;
+  background: #000;
+  border: 2px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+  font-family: var(--font-display);
+  font-size: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  letter-spacing: 0.12em;
+  box-shadow: 0 0 14px var(--neon-cyan);
+  opacity: 0;
+  animation: skipBtnIn 0.3s ease 0.2s forwards;
+}
+@keyframes skipBtnIn { to { opacity: 1; } }
+.crtSkip:hover {
+  background: var(--neon-cyan);
+  color: #000;
+}
