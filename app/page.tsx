@@ -55,6 +55,7 @@ export default function Home() {
         </div>
         <div>
           © 2026 MINTFACE · 64 ARCADE PIXEL PAINTINGS ·{' '}
+          <Link href="/collection" className={styles.wizardsLink}>COLLECTION</Link>{' · '}
           <Link href="/wizards" className={styles.wizardsLink}>WIZARDS</Link>
         </div>
       </footer>
