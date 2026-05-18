@@ -49,14 +49,15 @@ export default function Home() {
       </main>
 
       <footer className={styles.footer}>
-        <div className={styles.prototypeTag}>★ PROTOTYPE · CONTRACT WIP · DEMO STATE ★</div>
+        <div className={styles.prototypeTag}>
+          ★ <Link href="/wizards" className={styles.wizardsLink}>WIZARDS</Link>{' · '}
+          <Link href="/collection" className={styles.wizardsLink}>COLLECTION</Link> ★
+        </div>
         <div className={styles.buildLine}>
-          SCREENS USE <span className={styles.hl}>PLACEHOLDER WALLET</span> · NO REAL ETH MOVES YET
+          COLLECTION BY <span className={styles.hl}>MINTFACE</span> · CONTRACT BY <span className={styles.hl}>YUNGWKND</span> ·
         </div>
         <div>
-          © 2026 MINTFACE · 64 ARCADE PIXEL PAINTINGS ·{' '}
-          <Link href="/collection" className={styles.wizardsLink}>COLLECTION</Link>{' · '}
-          <Link href="/wizards" className={styles.wizardsLink}>WIZARDS</Link>
+          © 2026 MINTFACE · 64 ARCADE PIXEL PAINTINGS 🍒
         </div>
       </footer>
     </>
