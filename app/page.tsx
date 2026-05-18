@@ -50,8 +50,7 @@ export default function Home() {
 
       <footer className={styles.footer}>
         <div className={styles.prototypeTag}>
-          ★ <Link href="/wizards" className={styles.wizardsLink}>WIZARDS</Link>{' · '}
-          <Link href="/collection" className={styles.wizardsLink}>COLLECTION</Link> ★
+          ★ <Link href="/wizards" className={styles.wizardsLink}>WIZARDS</Link> ★
         </div>
         <div className={styles.buildLine}>
           COLLECTION BY <span className={styles.hl}>MINTFACE</span> · CONTRACT BY <span className={styles.hl}>YUNGWKND</span> ·
