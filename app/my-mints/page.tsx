@@ -406,9 +406,9 @@ export default function MyMintsPage() {
 
       <div className={styles.footer}>
         <div className={styles.highscore}>★ © 2026 MINTFACE.ART · 64 ARCADE PIXEL PAINTINGS ★</div>
-        <div>POWERED BY ETHEREUM · TRANSIENT · CHAINLINK VRF</div>
+        <div>POWERED BY ETHEREUM · MANIFOLD · CHAINLINK VRF</div>
         <div className={styles.footerStartLine}>
-          PRESS <Link href="/mint" className={styles.footerStartLink}>[START]</Link> TO MINT MORE
+          PRESS <Link href="/mint" className={styles.footerStartLink}>[START]</Link> TO MINT MOAR
         </div>
       </div>
 
