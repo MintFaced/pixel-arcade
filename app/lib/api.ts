@@ -1,184 +1,162 @@
 /**
- * API client — typed stubs for the backend endpoints that will exist in
- * session 4b. Right now these return mock data so the UI keeps working
- * without a backend.
+ * API client — typed fetch wrappers for the backend.
  *
- * The interface (function signatures + types) is locked in now so that
- * session 4b is a 5-line swap: replace each function body with a fetch()
- * to the real endpoint.
- *
- * Server-side endpoints we're targeting (Vercel API routes):
- *   - POST /api/auth/nonce          — get a nonce for SIWE
- *   - POST /api/auth/verify         — verify the SIWE signature, get a JWT
- *   - GET  /api/session             — current session info (tier, rolls used)
- *   - POST /api/roll                — request a new roll (backend picks token, holds it)
- *   - POST /api/lock                — lock a roll for minting (extends hold)
- *   - POST /api/release             — release a roll back to the pool
- *   - POST /api/mint-authorization  — get an EIP-712 signed MintAuthorization
- *                                     from the elevated-tier key
+ * SIWE auth uses a session cookie set by /api/auth/verify; subsequent calls
+ * send the cookie automatically via `credentials: 'same-origin'`.
  */
 
 import type { Era } from './pool';
 
 // ============================================================
-// Shared types
+// Shared types — match the backend response shapes
 // ============================================================
 
-export interface TierInfo {
-  /** 'standard' (1 roll) or 'elevated' (5 rolls) */
+export interface SessionInfo {
+  address: string;
   tier: 'standard' | 'elevated';
-  /** Total rolls per 24h window for this tier */
+  tierValue: 0 | 1;
   rollsTotal: number;
-  /** Rolls used this 24h window */
   rollsUsed: number;
-  /** Merkle proof for elevated tier (empty array if standard) */
+  rollsRemaining: number;
   proof: string[];
+  holds: Array<{ tokenId: number; expiresAt: number; locked: boolean }>;
 }
 
 export interface RollResult {
-  /** Token ID picked by backend */
   tokenId: number;
-  /** Hold ID — pass to /lock or /release within 15 min */
-  holdId: string;
-  /** Seconds until the hold expires */
-  expiresIn: number;
+  expiresAt: number;
+  rollsUsed: number;
+  rollsRemaining: number;
 }
 
 export interface LockResult {
-  holdId: string;
-  /** Total locked tokens for this session */
-  locked: number[];
-  /** Extended expiry (seconds from now) */
-  expiresIn: number;
+  tokenId: number;
+  expiresAt: number;
+  locked: true;
 }
 
-export interface MintAuthorization {
-  /** EIP-712 payload that gets passed to the contract's batchMint */
+export interface SignedMintAuthorization {
   domain: {
     name: string;
     version: string;
     chainId: number;
-    verifyingContract: string;
+    verifyingContract: `0x${string}`;
   };
+  types: Record<string, Array<{ name: string; type: string }>>;
+  primaryType: 'MintAuthorization';
   message: {
-    minter: string;          // user's address
-    tokenIds: number[];      // tokens locked for mint
-    tier: 0 | 1;             // 0=standard, 1=elevated
-    nonce: bigint;           // signed nonce
-    deadline: bigint;        // unix seconds
+    minter: `0x${string}`;
+    tokenIds: string[];  // bigint stringified
+    tier: number;
+    merkleProof: `0x${string}`[];
+    nonce: string;
+    deadline: string;
   };
-  /** EIP-712 signature from the backend's signing key */
   signature: `0x${string}`;
-  /** Total price in wei (tokenIds.length * 0.05 ether) */
-  totalPrice: bigint;
-  /** Merkle proof for the user's tier */
-  merkleProof: `0x${string}`[];
 }
 
 // ============================================================
-// Stubs — return mock data so UI works without backend
+// Fetch helper with consistent error handling
 // ============================================================
 
-const STUB_DELAY_MS = 300; // simulate network latency
-
-function delay<T>(value: T, ms = STUB_DELAY_MS): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
 }
 
-/**
- * GET /api/session — returns the current user's tier, rolls allowance,
- * and rolls used. In session 4b this checks the user's address against
- * the allowlist Merkle root + Redis usage tracking.
- */
-export async function getSession(address: string): Promise<TierInfo> {
-  // Mock: pretend everyone is elevated tier with 5 rolls total, 0 used.
-  // Mock: assume connected wallet is standard tier with 3 rolls available.
-  // Session 4b: real lookup against allowlist + Redis to return either:
-  //   - { tier: 'standard', rollsTotal: 3, rollsUsed: <redis count>, proof: [] }
-  //   - { tier: 'elevated', rollsTotal: 5, rollsUsed: <redis count>, proof: [...] }
-  void address;
-  return delay({
-    tier: 'standard',
-    rollsTotal: 3,
-    rollsUsed: 0,
-    proof: [],
-  });
-}
-
-/**
- * POST /api/roll — backend picks a random unminted token and holds it for
- * 15 minutes against the user's address. Re-rolling within the hold
- * window is allowed (releases the previous hold).
- */
-export async function requestRoll(_address: string): Promise<RollResult> {
-  // Mock: pick a random token 1-64. Real impl uses on-chain pool state
-  // and a server-side RNG (or Chainlink VRF commit-reveal).
-  const tokenId = Math.floor(Math.random() * 64) + 1;
-  return delay({
-    tokenId,
-    holdId: 'stub-hold-' + Math.random().toString(36).slice(2, 10),
-    expiresIn: 900, // 15 min
-  });
-}
-
-/**
- * POST /api/lock — extend the hold to a longer window (e.g. 60 min) so
- * the user can roll more and batch them. Releases auto-extend.
- */
-export async function lockRoll(holdId: string): Promise<LockResult> {
-  void holdId;
-  return delay({
-    holdId,
-    locked: [],
-    expiresIn: 3600,
-  });
-}
-
-/**
- * POST /api/release — release a held token back to the pool early. Hold
- * expiry handles the lazy case; this is the eager release.
- */
-export async function releaseRoll(holdId: string): Promise<void> {
-  void holdId;
-  return delay(undefined);
-}
-
-/**
- * POST /api/mint-authorization — backend signs an EIP-712 MintAuthorization
- * that the user submits to the contract along with payment. The signature
- * is the elevated-tier signing key authorizing this specific mint.
- */
-export async function getMintAuthorization(
-  address: string,
-  tokenIds: number[]
-): Promise<MintAuthorization> {
-  // Mock: returns a fake authorization. Session 4b: real EIP-712 sign on backend.
-  return delay({
-    domain: {
-      name: 'PixelArcade',
-      version: '1',
-      chainId: 11155111, // Sepolia
-      verifyingContract: '0x0000000000000000000000000000000000000000',
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const resp = await fetch(path, {
+    ...init,
+    credentials: 'same-origin',
+    headers: {
+      'content-type': 'application/json',
+      ...(init?.headers ?? {}),
     },
-    message: {
-      minter: address,
-      tokenIds,
-      tier: 1,
-      nonce: 0n,
-      deadline: BigInt(Math.floor(Date.now() / 1000) + 600),
-    },
-    signature: '0x' + '00'.repeat(65) as `0x${string}`,
-    totalPrice: BigInt(tokenIds.length) * BigInt(5e16), // 0.05 ETH each
-    merkleProof: [],
+  });
+  let body: unknown = null;
+  try {
+    body = await resp.json();
+  } catch {
+    // Non-JSON response is OK if status is fine
+  }
+  if (!resp.ok) {
+    const errorMsg = (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string')
+      ? body.error
+      : `Request failed (${resp.status})`;
+    throw new ApiError(errorMsg, resp.status);
+  }
+  return body as T;
+}
+
+// ============================================================
+// Auth — SIWE flow
+// ============================================================
+
+export async function getSiweNonce(address: string): Promise<string> {
+  const data = await apiFetch<{ nonce: string }>('/api/auth/nonce', {
+    method: 'POST',
+    body: JSON.stringify({ address }),
+  });
+  return data.nonce;
+}
+
+export async function verifySiweSignature(message: string, signature: string): Promise<{ address: string }> {
+  return apiFetch<{ address: string }>('/api/auth/verify', {
+    method: 'POST',
+    body: JSON.stringify({ message, signature }),
   });
 }
 
-/**
- * Helper: prices per era for physical claims (matches my-mints drawer).
- * Pure data, no network call needed.
- */
+// ============================================================
+// Session
+// ============================================================
+
+export async function getSession(): Promise<SessionInfo> {
+  return apiFetch<SessionInfo>('/api/session', { method: 'GET' });
+}
+
+// ============================================================
+// Roll / Lock / Release
+// ============================================================
+
+export async function requestRoll(): Promise<RollResult> {
+  return apiFetch<RollResult>('/api/roll', { method: 'POST' });
+}
+
+export async function lockRoll(tokenId: number): Promise<LockResult> {
+  return apiFetch<LockResult>('/api/lock', {
+    method: 'POST',
+    body: JSON.stringify({ tokenId }),
+  });
+}
+
+export async function releaseRoll(tokenId: number): Promise<void> {
+  await apiFetch<{ ok: boolean }>('/api/release', {
+    method: 'POST',
+    body: JSON.stringify({ tokenId }),
+  });
+}
+
+// ============================================================
+// Mint authorization
+// ============================================================
+
+export async function getMintAuthorization(tokenIds: number[]): Promise<SignedMintAuthorization> {
+  return apiFetch<SignedMintAuthorization>('/api/mint-authorization', {
+    method: 'POST',
+    body: JSON.stringify({ tokenIds }),
+  });
+}
+
+// ============================================================
+// Physical / shipping
+// ============================================================
+
 export const PHYSICAL_PRICES: Record<Era, { painting: bigint; shipping: bigint }> = {
-  '8-bit':  { painting: BigInt(25e16),  shipping: BigInt(25e16) },  // 0.25 ETH each
-  '16-bit': { painting: BigInt(50e16),  shipping: BigInt(25e16) },  // 0.50 ETH painting
-  '32-bit': { painting: BigInt(100e16), shipping: BigInt(25e16) },  // 1.00 ETH painting
+  '8-bit':  { painting: BigInt(25e16),  shipping: BigInt(25e16) },
+  '16-bit': { painting: BigInt(50e16),  shipping: BigInt(25e16) },
+  '32-bit': { painting: BigInt(100e16), shipping: BigInt(25e16) },
 };
