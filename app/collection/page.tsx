@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { POOL, type PoolGame, type Era, svgPath, eraClass } from '../lib/pool';
 import { WalletStatus } from '../components/WalletStatus';
 import styles from './page.module.css';
@@ -54,8 +55,53 @@ function formatOwner(owner: string): string {
 type EraFilter = 'all' | Era;
 
 export default function CollectionPage() {
+  // Suspense required because useSearchParams() inside CollectionPageInner
+  // forces client-side rendering. The fallback is empty since the page
+  // hydrates very quickly anyway.
+  return (
+    <Suspense fallback={null}>
+      <CollectionPageInner />
+    </Suspense>
+  );
+}
+
+function CollectionPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [eraFilter, setEraFilter] = useState<EraFilter>('all');
   const [detailToken, setDetailToken] = useState<PoolGame | null>(null);
+
+  // Sync URL `?token=NN` into detailToken state.
+  // Opening a modal pushes `?token=NN`; closing pops it.
+  // Allows QR codes / shared links to deep-link to a specific token's detail.
+  useEffect(() => {
+    const tokenParam = searchParams.get('token');
+    if (tokenParam) {
+      const tokenId = parseInt(tokenParam, 10);
+      if (Number.isInteger(tokenId)) {
+        const game = POOL.find((g) => g.tokenId === tokenId);
+        if (game) {
+          setDetailToken(game);
+          return;
+        }
+      }
+    }
+    setDetailToken(null);
+  }, [searchParams]);
+
+  const openToken = (game: PoolGame) => {
+    // Update URL — useEffect above syncs state
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('token', String(game.tokenId));
+    router.replace(`/collection?${params.toString()}`, { scroll: false });
+  };
+
+  const closeToken = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('token');
+    const query = params.toString();
+    router.replace(query ? `/collection?${query}` : '/collection', { scroll: false });
+  };
 
   const filtered = useMemo(() => {
     if (eraFilter === 'all') return POOL;
@@ -79,10 +125,11 @@ export default function CollectionPage() {
   useEffect(() => {
     if (!detailToken) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setDetailToken(null);
+      if (e.key === 'Escape') closeToken();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detailToken]);
 
   return (
@@ -135,7 +182,7 @@ export default function CollectionPage() {
                 key={game.id}
                 type="button"
                 className={`${styles.cabinet} ${styles[eraClass(game.era)]} ${info.physicalClaimed ? styles.claimed : ''}`}
-                onClick={() => setDetailToken(game)}
+                onClick={() => openToken(game)}
               >
                 <div className={styles.cabinetTop}>
                   <span className={styles.tokenIdLabel}>#{String(game.tokenId).padStart(2, '0')}</span>
@@ -164,11 +211,16 @@ export default function CollectionPage() {
         </div>
       </main>
 
+      <footer className={styles.collectionFooter}>
+        <div>SHIPS IN 2-3 WEEKS · READY TO HANG · UNFRAMED ·</div>
+        <div>SHIPPED FROM THE LINE GALLERY NEW ZEALAND</div>
+      </footer>
+
       {detailToken && (
         <DetailModal
           game={detailToken}
           info={getClaimInfo(detailToken.tokenId)}
-          onClose={() => setDetailToken(null)}
+          onClose={closeToken}
         />
       )}
     </>
