@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import styles from './Gate.module.css';
 
 const PASSCODE = 'arcade26';
@@ -10,10 +11,14 @@ const STORAGE_KEY = 'pixelarcade_unlocked';
  * Password gate. Theater for a prototype — not security.
  * Stores an unlocked flag in sessionStorage so refreshes within a session pass.
  *
+ * Bypasses entirely on /screen/* routes so the gallery's pedestal/ticker
+ * displays don't get blocked by the gate on every reboot.
+ *
  * Rendered as a fixed overlay above all content. When unlocked, fully removed
  * from DOM so it doesn't capture clicks or interfere with focus.
  */
 export default function Gate() {
+  const pathname = usePathname();
   // Default to LOCKED so content never flashes on first paint for new users.
   // After mount we check sessionStorage and unlock if the user already entered
   // the passcode this session.
@@ -21,13 +26,19 @@ export default function Gate() {
   const [wrong, setWrong] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const isKioskRoute = pathname?.startsWith('/screen') ?? false;
+
   useEffect(() => {
+    if (isKioskRoute) {
+      setUnlocked(true);
+      return;
+    }
     if (sessionStorage.getItem(STORAGE_KEY) === '1') {
       setUnlocked(true);
     } else {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, []);
+  }, [isKioskRoute]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
