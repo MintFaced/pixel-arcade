@@ -44,6 +44,10 @@ function SlideshowInner() {
   const interval = Math.max(2000, parseInt(searchParams.get('interval') ?? '8000', 10) || 8000);
   const erasParam = searchParams.get('eras');
   const shuffle = searchParams.get('shuffle') === '1';
+  // ?rotate=1 forces portrait-style rotated rendering even if the browser
+  // reports landscape orientation (useful when the physical screen is
+  // rotated 90° but the OS doesn't know about it).
+  const forceRotate = searchParams.get('rotate') === '1';
 
   const slides = useMemo(() => {
     let pool: PoolGame[] = [...POOL];
@@ -80,7 +84,7 @@ function SlideshowInner() {
   const owner = MOCK_OWNERS[game.tokenId];
 
   return (
-    <div className={styles.stage}>
+    <div className={`${styles.stage} ${forceRotate ? styles.forcePortrait : ''}`}>
       <div className={styles.imageWrap}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img

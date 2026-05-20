@@ -187,13 +187,83 @@
   background: #050218;
 }
 
-/* Vertical / portrait screens — adjust layout */
+/* Manual override: ?rotate=1 query param applies portrait layout even when
+   the screen reports landscape. Useful when a monitor is physically rotated. */
+.forcePortrait {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr auto;
+}
+.forcePortrait .imageWrap {
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+}
+.forcePortrait .image {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(100vh - 200px);
+  height: calc(100vw - 8vw);
+  max-width: none;
+  max-height: none;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
+}
+.forcePortrait .overlay {
+  padding: 2vh 5vw 3vh;
+  gap: 1vh;
+  background: linear-gradient(180deg, rgba(10,4,30,0.4), rgba(10,4,30,0.95) 40%);
+  min-height: 180px;
+}
+.forcePortrait .tokenId { font-size: 1.2vh; }
+.forcePortrait .title { font-size: 4.5vh; }
+.forcePortrait .subtitle { font-size: 1.6vh; }
+.forcePortrait .meta { font-size: 1.1vh; }
+.forcePortrait .status { font-size: 1.6vh; padding: 1vh 0; }
+.forcePortrait .owner { font-size: 2.2vh; }
+.forcePortrait .cherry,
+.forcePortrait .green { font-size: 2.2vh; }
+.forcePortrait .cta { font-size: 1.4vh; margin-top: 1vh; }
+
+/* Vertical / portrait screens — same treatment automatically when orientation is detected */
 @media (orientation: portrait) {
   .stage {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1fr;
+    grid-template-rows: 1fr auto;
   }
-  .imageWrap { padding: 6vw; }
-  .overlay { padding: 4vh 6vw; gap: 2vh; }
-  .title { font-size: 7vh; }
+  .imageWrap {
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+  }
+  /* Wrap image in a 90° rotated frame that fills the available space.
+     Image dimensions are swapped: pre-rotation we set width=screen-height,
+     height=screen-width, so after rotation the image visually fills the
+     portrait viewport edge-to-edge. */
+  .image {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(100vh - 200px);    /* leave room for overlay below */
+    height: calc(100vw - 8vw);     /* leave 4vw padding each side */
+    max-width: none;
+    max-height: none;
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center center;
+  }
+  .overlay {
+    padding: 2vh 5vw 3vh;
+    gap: 1vh;
+    background:
+      linear-gradient(180deg, rgba(10,4,30,0.4), rgba(10,4,30,0.95) 40%);
+    min-height: 180px;
+  }
+  .tokenId { font-size: 1.2vh; }
+  .title { font-size: 4.5vh; }
+  .subtitle { font-size: 1.6vh; }
+  .meta { font-size: 1.1vh; }
+  .status { font-size: 1.6vh; padding: 1vh 0; }
+  .owner { font-size: 2.2vh; }
+  .cherry, .green { font-size: 2.2vh; }
+  .cta { font-size: 1.4vh; margin-top: 1vh; }
 }
