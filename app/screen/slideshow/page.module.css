@@ -1,0 +1,199 @@
+/* ============================================================
+   /screen/slideshow — full-screen kiosk display
+   ============================================================ */
+
+.stage {
+  position: fixed;
+  inset: 0;
+  background: #050218;
+  color: #fff;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  overflow: hidden;
+}
+
+.imageWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  padding: 4vh;
+  position: relative;
+}
+
+.imageWrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    rgba(0, 0, 0, 0.15) 3px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
+  opacity: 0.4;
+}
+
+.image {
+  max-width: 100%;
+  max-height: 100%;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 30px rgba(203, 2, 178, 0.4));
+  animation: slideIn 0.6s ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.overlay {
+  padding: 6vh 5vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2vh;
+  background:
+    linear-gradient(180deg, rgba(10,4,30,0.85), rgba(10,4,30,0.95)),
+    radial-gradient(circle at 60% 30%, rgba(203,2,178,0.15), transparent 60%);
+  position: relative;
+}
+
+.tokenId {
+  font-family: var(--font-pixel);
+  font-size: 1.4vh;
+  letter-spacing: 0.25em;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px var(--neon-cyan);
+  opacity: 0.85;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 8vh;
+  margin: 0;
+  line-height: 1;
+  color: var(--neon-yellow);
+  text-shadow:
+    0 0 20px var(--neon-yellow),
+    0.3vh 0.3vh 0 var(--face-pink);
+  letter-spacing: 0.02em;
+  animation: titleIn 0.6s ease-out;
+}
+@keyframes titleIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.subtitle {
+  font-family: var(--font-screen);
+  font-size: 2.4vh;
+  color: var(--pixel-dim);
+  letter-spacing: 0.03em;
+}
+
+.meta {
+  font-family: var(--font-pixel);
+  font-size: 1.4vh;
+  letter-spacing: 0.15em;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 6px var(--neon-cyan);
+}
+
+.status {
+  font-family: var(--font-pixel);
+  font-size: 2.2vh;
+  letter-spacing: 0.1em;
+  margin-top: 1.5vh;
+  padding: 2vh 0;
+  border-top: 1px solid rgba(255,255,255,0.15);
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+}
+.cherry { font-size: 3vh; vertical-align: middle; }
+.green { font-size: 3vh; vertical-align: middle; }
+.claimedLabel {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 8px var(--neon-yellow);
+}
+.availableLabel {
+  color: var(--neon-green);
+  text-shadow: 0 0 8px var(--neon-green);
+}
+.owner {
+  font-family: var(--font-display);
+  font-size: 3vh;
+  color: var(--neon-yellow);
+  text-shadow: 0 0 10px var(--neon-yellow);
+  margin-top: 1vh;
+  word-break: break-all;
+}
+
+.cta {
+  font-family: var(--font-pixel);
+  font-size: 1.8vh;
+  letter-spacing: 0.15em;
+  color: var(--face-pink);
+  text-shadow: 0 0 10px var(--face-pink);
+  margin-top: 2vh;
+}
+.url {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 10px var(--neon-yellow);
+  text-decoration: underline;
+}
+
+.progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: rgba(255,255,255,0.05);
+}
+.progressBar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--face-pink), var(--neon-yellow));
+  box-shadow: 0 0 12px var(--face-pink);
+  animation-name: progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  width: 0;
+}
+@keyframes progress {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+.counter {
+  position: absolute;
+  bottom: 2vh;
+  right: 2vw;
+  font-family: var(--font-pixel);
+  font-size: 1.2vh;
+  letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.3);
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  inset: 0;
+  font-family: var(--font-pixel);
+  color: var(--pixel-dim);
+  background: #050218;
+}
+
+/* Vertical / portrait screens — adjust layout */
+@media (orientation: portrait) {
+  .stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+  .imageWrap { padding: 6vw; }
+  .overlay { padding: 4vh 6vw; gap: 2vh; }
+  .title { font-size: 7vh; }
+}
