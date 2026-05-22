@@ -138,15 +138,67 @@ interface BossDescriptor {
   pattern: 'spiral' | 'sweep' | 'beam' | 'rain' | 'rage' | 'mixed';
   /** Color used for boss HP bar */
   color: string;
+  /** Phrases boss occasionally shouts in a speech bubble. Random pick each time. */
+  taunts: string[];
 }
 
 const BOSSES: Record<number, BossDescriptor> = {
-  5:  { name: 'DAMAGER',        sprite: 'boss-damager',    hp: 30,  pattern: 'spiral', color: '#ff1ad9' },
-  10: { name: 'DOOMED RED',     sprite: 'boss-doomed-red', hp: 50,  pattern: 'sweep',  color: '#ff3355' },
-  15: { name: 'RAGE',           sprite: 'boss-rage',       hp: 70,  pattern: 'rain',   color: '#ff0000' },
-  20: { name: 'SPECIAL OP',     sprite: 'boss-spec-ops',   hp: 95,  pattern: 'beam',   color: '#3a55ff' },
-  25: { name: 'BEAST MODE',     sprite: 'boss-beast',      hp: 120, pattern: 'rage',   color: '#00d5cc' },
-  30: { name: 'MAX PAIN',       sprite: 'boss-maxpain',    hp: 200, pattern: 'mixed',  color: '#ff1ad9' },
+  5:  {
+    name: 'DAMAGER', sprite: 'boss-damager', hp: 30, pattern: 'spiral', color: '#ff1ad9',
+    taunts: [
+      'BATTERY LOW',
+      'POWER DRAIN INITIATED',
+      'YOU CANT CHARGE OUT',
+      'SYSTEM FAILURE IMMINENT',
+    ],
+  },
+  10: {
+    name: '6529 PUNK', sprite: 'boss-doomed-red', hp: 50, pattern: 'sweep', color: '#7eb8d4',
+    taunts: [
+      'SEIZE THE MEMES!',
+      'YOU ARE NOT BULLISH ENOUGH!',
+      'FREEDOM TO TRANSACT',
+      'DONT LET THEM!',
+    ],
+  },
+  15: {
+    name: 'RAGE', sprite: 'boss-rage', hp: 70, pattern: 'rain', color: '#ff0000',
+    taunts: [
+      'RAGE MODE ACTIVATED',
+      'NO MERCY',
+      'BURN IT DOWN',
+      'YOU CHOSE WRONG',
+    ],
+  },
+  20: {
+    name: 'SPECIAL OP', sprite: 'boss-spec-ops', hp: 95, pattern: 'beam', color: '#3a55ff',
+    taunts: [
+      'ORDERS ARE ORDERS',
+      'COMPLIANCE IS MANDATORY',
+      'RESISTANCE IS NOISE',
+      'STEP IN LINE',
+    ],
+  },
+  25: {
+    name: 'BEAST MODE', sprite: 'boss-beast', hp: 120, pattern: 'rage', color: '#00d5cc',
+    taunts: [
+      'FEED ME',
+      'ALPHA DETECTED',
+      'I HUNGER',
+      'YOU SMELL LIKE EXIT LIQUIDITY',
+    ],
+  },
+  30: {
+    name: 'MAX PAIN', sprite: 'boss-maxpain', hp: 200, pattern: 'mixed', color: '#ff1ad9',
+    taunts: [
+      'THIS IS THE BOTTOM',
+      'JUST KIDDING',
+      'MAXIMUM PAIN PROTOCOL',
+      'EVERYONE GETS REKT',
+      'I AM INEVITABLE',
+      'THERE IS NO ESCAPE',
+    ],
+  },
 };
 
 // ============================================================
@@ -450,6 +502,16 @@ class Boss implements Entity {
   // Firing
   fireCooldown = 1.0;
   spiralAngle = 0;
+  // Taunts
+  taunts: string[];
+  /** State machine: idle → fading-in → holding → fading-out → idle */
+  tauntPhase: 'idle' | 'fading-in' | 'holding' | 'fading-out' = 'idle';
+  /** Seconds left in current phase */
+  tauntTimer = 0;
+  /** Current phrase being shown (only valid when not idle) */
+  currentTaunt = '';
+  /** Time until next taunt fires (when idle) */
+  tauntCooldown = 0;
 
   constructor(desc: BossDescriptor, sprite: HTMLImageElement) {
     this.x = PLAYFIELD_W / 2;
@@ -460,10 +522,14 @@ class Boss implements Entity {
     this.pattern = desc.pattern;
     this.sprite = sprite;
     this.color = desc.color;
+    this.taunts = desc.taunts;
+    // First taunt comes ~2 sec after boss appears (so the wave-intro overlay clears first)
+    this.tauntCooldown = 2.0;
   }
 
   update(dt: number, t: number, playerX: number, fireCallback: (bullets: Bullet[]) => void) {
     this.moveT += dt;
+    this.tickTaunt(dt);
     // Horizontal swaying
     this.x = PLAYFIELD_W / 2 + Math.sin(this.moveT * 0.7) * (PLAYFIELD_W * 0.3);
     // Slight vertical bob
@@ -587,6 +653,52 @@ class Boss implements Entity {
     return false;
   }
 
+  /**
+   * Taunt state machine. Idle → cooldown ticks down → fire phrase → fade in
+   * (0.3s) → hold (3s) → fade out (0.5s) → idle. Next cooldown is random
+   * 4–8 sec so taunts don't feel mechanical.
+   */
+  private tickTaunt(dt: number) {
+    if (this.taunts.length === 0) return;
+    this.tauntTimer -= dt;
+    if (this.tauntTimer > 0) return;
+
+    switch (this.tauntPhase) {
+      case 'idle': {
+        this.tauntCooldown -= dt;
+        if (this.tauntCooldown <= 0) {
+          this.currentTaunt = this.taunts[Math.floor(Math.random() * this.taunts.length)];
+          this.tauntPhase = 'fading-in';
+          this.tauntTimer = 0.3;
+        }
+        break;
+      }
+      case 'fading-in':
+        this.tauntPhase = 'holding';
+        this.tauntTimer = 3.0;
+        break;
+      case 'holding':
+        this.tauntPhase = 'fading-out';
+        this.tauntTimer = 0.5;
+        break;
+      case 'fading-out':
+        this.tauntPhase = 'idle';
+        this.tauntCooldown = 4 + Math.random() * 4;   // 4–8 sec between taunts
+        this.currentTaunt = '';
+        break;
+    }
+  }
+
+  /** Returns 0..1 opacity for the current taunt bubble, or 0 if idle */
+  private getTauntAlpha(): number {
+    switch (this.tauntPhase) {
+      case 'idle':        return 0;
+      case 'fading-in':   return 1 - (this.tauntTimer / 0.3);
+      case 'holding':     return 1;
+      case 'fading-out':  return this.tauntTimer / 0.5;
+    }
+  }
+
   render(ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.translate(this.x, this.y);
@@ -597,6 +709,59 @@ class Boss implements Entity {
     ctx.shadowColor = this.color;
     ctx.shadowBlur = lowHp ? 24 : 12;
     ctx.drawImage(this.sprite, -this.w / 2, -this.h / 2, this.w, this.h);
+    ctx.restore();
+
+    // Taunt bubble — rendered AFTER sprite so it overlays
+    this.renderTaunt(ctx);
+  }
+
+  private renderTaunt(ctx: CanvasRenderingContext2D) {
+    const alpha = this.getTauntAlpha();
+    if (alpha <= 0 || !this.currentTaunt) return;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // Measure text to size the bubble
+    ctx.font = 'bold 10px "Press Start 2P", monospace';
+    const textW = ctx.measureText(this.currentTaunt).width;
+    const padX = 10;
+    const padY = 7;
+    const bubbleW = textW + padX * 2;
+    const bubbleH = 22;
+    // Position above boss head with a small gap
+    const bubbleY = this.y - this.h / 2 - bubbleH - 14;
+    const bubbleX = this.x - bubbleW / 2;
+
+    // Bubble background (translucent dark with colored border)
+    ctx.fillStyle = 'rgba(10, 4, 30, 0.92)';
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 8;
+    ctx.fillRect(bubbleX, bubbleY, bubbleW, bubbleH);
+    ctx.strokeRect(bubbleX, bubbleY, bubbleW, bubbleH);
+
+    // Triangle tail pointing down toward boss
+    ctx.beginPath();
+    ctx.moveTo(this.x - 5, bubbleY + bubbleH);
+    ctx.lineTo(this.x + 5, bubbleY + bubbleH);
+    ctx.lineTo(this.x, bubbleY + bubbleH + 7);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(10, 4, 30, 0.92)';
+    ctx.shadowBlur = 0;
+    ctx.fill();
+    ctx.strokeStyle = this.color;
+    ctx.stroke();
+
+    // Text
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 4;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(this.currentTaunt, this.x, bubbleY + bubbleH / 2);
+
     ctx.restore();
   }
 }
