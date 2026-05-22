@@ -279,15 +279,15 @@ export default function PlayPage() {
                 {hasGameOverImage ? (
                   <img
                     src="/swarm/sprites/game-over.png"
-                    alt="RIP JPEG"
+                    alt="GAME OVER"
                     className={styles.gameOverImage}
                   />
                 ) : (
-                  <div className={styles.gameOverTitle}>RIP JPEG</div>
+                  <div className={styles.gameOverTitle}>GAME OVER</div>
                 )}
                 <div className={styles.finalScore}>{String(stats.score).padStart(6, '0')}</div>
                 <div className={styles.subtitle}>
-                  WAVE {stats.wave}/30 · SHIP LOST
+                  WAVE {stats.wave}/30 · SHIP LOST · NGMI
                 </div>
                 <button className={styles.startBtn} onClick={startGame}>
                   ▶ PLAY AGAIN
