@@ -395,6 +395,9 @@ export default function PlayPage() {
                     <button className={styles.startBtn} onClick={startGame}>
                       ▶ INSERT COIN
                     </button>
+                    <Link href="/characters" className={styles.charactersLink}>
+                      ? CHARACTERS
+                    </Link>
                     <div className={styles.footnote}>v0.2 prototype · vanilla mode</div>
                   </>
                 )}

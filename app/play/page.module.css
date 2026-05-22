@@ -351,6 +351,25 @@
   margin-top: 4px;
 }
 
+.charactersLink {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 4px var(--neon-cyan);
+  text-decoration: none;
+  letter-spacing: 0.18em;
+  padding: 6px 10px;
+  border: 1px solid var(--neon-cyan);
+  margin-top: 4px;
+  transition: all 0.15s;
+}
+.charactersLink:hover {
+  color: var(--neon-yellow);
+  border-color: var(--neon-yellow);
+  text-shadow: 0 0 8px var(--neon-yellow);
+  box-shadow: 0 0 12px rgba(255, 224, 0, 0.4);
+}
+
 /* ============================================================
    Active boosts bar (between HUD and cabinet)
    ============================================================ */

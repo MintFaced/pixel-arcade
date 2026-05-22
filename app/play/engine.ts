@@ -1316,7 +1316,16 @@ export class GameEngine {
       if (!enemiesAlive && !bossAlive) {
         this.score += 100 * this.wave;
         if (this.wave === SECRET_FINAL_WAVE) {
-          // Beat MintFace — true ending
+          // Beat MintFace — true ending. Persist the unlock so the /characters
+          // bestiary reveals MintFace permanently for this browser.
+          // Don't set this in demo mode (would falsely unlock the secret).
+          if (!this.demoMode) {
+            try {
+              localStorage.setItem('pixelarcade_swarm_true_ending', 'true');
+            } catch {
+              // localStorage may be blocked; ignore
+            }
+          }
           this.phase = 'true-victory';
           this.phaseTime = 0;
           this.emitPhase();
