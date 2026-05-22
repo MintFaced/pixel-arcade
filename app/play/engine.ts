@@ -1,41 +1,87 @@
 /**
- * PixelArcade: SWARM — game engine (session 5a prototype).
+ * PixelArcade: SWARM — game engine (session 5b).
  *
- * Pure TypeScript game logic. No React imports — this runs as a self-contained
- * game inside a Canvas element. The React wrapper just mounts the canvas,
- * starts/stops the engine, and reads score/lives for the HUD.
+ * Full crypto-native build. Player ship = XNoun 468. Enemies = mfers (4 tiers
+ * with distinct behaviors). Bosses every 5 waves = XCOPY-styled pieces.
+ * Power-ups = 6 XNoun heads with timed effects.
  *
- * Architecture:
- *   - GameEngine owns state, runs the tick loop
- *   - Entities (Player, Bullet, Enemy, Particle) are simple classes with
- *     update(dt) and render(ctx) methods
- *   - InputState tracks pressed keys via ref
- *   - HUD callbacks fire on score/lives change so React can update the chrome
+ * Architecture overview:
  *
- * Session 5a scope: 3 waves of mfer-grunt enemies (formation entry + dives),
- * placeholder geometric sprites, single-player only.
+ *   GameEngine                Owns the loop, dispatches phase
+ *   ├─ Player                Sprite-rendered, power-up state attached
+ *   ├─ Bullet[]              Player + enemy projectiles
+ *   ├─ Enemy[]               Grunt/Runner/Sniper/Bomber + Boss subclasses
+ *   ├─ PowerUp[]             Falling Noun pickups
+ *   └─ Particle[]            Explosion debris
+ *
+ * Engine reads sprites from an AssetBundle passed at construction. Sprites
+ * are HTMLImageElements ready for direct ctx.drawImage().
+ *
+ * Wave structure (30 waves):
+ *   Waves 1-4:   mfer-grunt swarms (low intensity ramp)
+ *   Wave 5:      BOSS — Damager
+ *   Waves 6-9:   grunt + runner mix
+ *   Wave 10:     BOSS — Doomed Red
+ *   Waves 11-14: + sniper added
+ *   Wave 15:     BOSS — Rage (red filled)
+ *   Waves 16-19: + bomber added (full roster)
+ *   Wave 20:     BOSS — Special Operation
+ *   Waves 21-24: high density, all types
+ *   Wave 25:     BOSS — Beast Mode
+ *   Waves 26-29: max density, faster dives
+ *   Wave 30:     BOSS — Max Pain (FINAL)
  */
 
+import type { AssetBundle, SpriteKey } from './assets';
+
 // ============================================================
-// Constants
+// Constants — all tunables in one place for easy iteration
 // ============================================================
 
 const PLAYFIELD_W = 480;
 const PLAYFIELD_H = 640;
 
-const PLAYER_SPEED = 280;       // px / sec
-const PLAYER_FIRE_RATE = 5;     // shots / sec
-const BULLET_SPEED = 480;
-const ENEMY_DIVE_SPEED = 180;
-const ENEMY_FORMATION_AMPLITUDE = 24;   // px sway
+const PLAYER_SPEED = 300;
+const PLAYER_BASE_FIRE_RATE = 5;          // shots/sec
+const BULLET_SPEED = 540;
+const ENEMY_BULLET_SPEED = 260;
 
 const STARTING_LIVES = 3;
-const ENEMY_SCORE = 50;
+const RESPAWN_INVULN_SEC = 1.5;
+
+// Power-up durations (seconds)
+const POWERUP_DURATION = {
+  shield: Infinity,                       // until used
+  firerate: 8,
+  slowmo: 6,
+  multiplier: 10,
+  invincible: 4,
+  // life: instant +1
+} as const;
+
+const FIRERATE_BOOST = 2.5;               // 5/sec → 12.5/sec
+const SLOWMO_FACTOR = 0.45;
+const SCORE_MULTIPLIER_BOOST = 2;
+
+// Enemy stats
+const ENEMY_STATS = {
+  grunt:  { hp: 1, score:  50, dive_score_bonus: 1.5, speed_mult: 1.0, drop_chance: 0.04, can_fire: false },
+  runner: { hp: 1, score: 100, dive_score_bonus: 2.0, speed_mult: 1.5, drop_chance: 0.08, can_fire: false },
+  sniper: { hp: 2, score: 200, dive_score_bonus: 1.5, speed_mult: 0.8, drop_chance: 0.20, can_fire: true },
+  bomber: { hp: 2, score: 300, dive_score_bonus: 1.5, speed_mult: 1.1, drop_chance: 0.30, can_fire: true },
+} as const;
+
+// Streak thresholds
 const STREAK_THRESHOLDS = [
-  { count: 0, multiplier: 1 },
-  { count: 5, multiplier: 2 },
+  { count:  0, multiplier: 1 },
+  { count:  5, multiplier: 2 },
   { count: 10, multiplier: 3 },
+  { count: 20, multiplier: 4 },
 ];
+
+const POWERUP_SCORE = 500;                // noun-multiplier instant bonus
+
+const MAX_WAVES = 30;
 
 // ============================================================
 // Types
@@ -47,19 +93,64 @@ export interface GameStats {
   wave: number;
   streak: number;
   multiplier: number;
+  activeBoosts: ActiveBoost[];
+  bossHp: { current: number; max: number; name: string } | null;
 }
 
-export type GamePhase = 'pre-game' | 'wave-intro' | 'playing' | 'wave-clear' | 'game-over';
+export type GamePhase =
+  | 'pre-game' | 'wave-intro' | 'playing' | 'boss-incoming'
+  | 'wave-clear' | 'victory' | 'game-over';
 
 export interface GameCallbacks {
-  /** Called when score/lives/wave change. Use to update React HUD. */
   onStatsChange?: (stats: GameStats) => void;
-  /** Called when phase transitions. Use for wave intro text, game over screen. */
-  onPhaseChange?: (phase: GamePhase, context?: { score?: number; wave?: number }) => void;
+  onPhaseChange?: (phase: GamePhase, ctx?: { score?: number; wave?: number; bossName?: string }) => void;
 }
 
+interface ActiveBoost {
+  type: PowerUpType;
+  remaining: number;     // sec, Infinity for shield
+}
+
+type PowerUpType = 'shield' | 'life' | 'firerate' | 'slowmo' | 'multiplier' | 'invincible';
+
+const POWERUP_SPRITE: Record<PowerUpType, SpriteKey> = {
+  shield:      'noun-shield',
+  life:        'noun-life',
+  firerate:    'noun-firerate',
+  slowmo:      'noun-slowmo',
+  multiplier:  'noun-multiplier',
+  invincible:  'noun-invincible',
+};
+
+type EnemyTier = 'grunt' | 'runner' | 'sniper' | 'bomber';
+
+const ENEMY_SPRITE: Record<EnemyTier, SpriteKey> = {
+  grunt:  'mfer-grunt',
+  runner: 'mfer-runner',
+  sniper: 'mfer-sniper',
+  bomber: 'mfer-bomber',
+};
+
+interface BossDescriptor {
+  name: string;
+  sprite: SpriteKey;
+  hp: number;
+  pattern: 'spiral' | 'sweep' | 'beam' | 'rain' | 'rage' | 'mixed';
+  /** Color used for boss HP bar */
+  color: string;
+}
+
+const BOSSES: Record<number, BossDescriptor> = {
+  5:  { name: 'DAMAGER',        sprite: 'boss-damager',    hp: 30,  pattern: 'spiral', color: '#ff1ad9' },
+  10: { name: 'DOOMED RED',     sprite: 'boss-doomed-red', hp: 50,  pattern: 'sweep',  color: '#ff3355' },
+  15: { name: 'RAGE',           sprite: 'boss-rage',       hp: 70,  pattern: 'rain',   color: '#ff0000' },
+  20: { name: 'SPECIAL OP',     sprite: 'boss-spec-ops',   hp: 95,  pattern: 'beam',   color: '#3a55ff' },
+  25: { name: 'BEAST MODE',     sprite: 'boss-beast',      hp: 120, pattern: 'rage',   color: '#00d5cc' },
+  30: { name: 'MAX PAIN',       sprite: 'boss-maxpain',    hp: 200, pattern: 'mixed',  color: '#ff1ad9' },
+};
+
 // ============================================================
-// Entities
+// Entity interfaces
 // ============================================================
 
 interface Entity {
@@ -70,104 +161,168 @@ interface Entity {
   alive: boolean;
 }
 
+// ============================================================
+// Player
+// ============================================================
+
 class Player implements Entity {
   x: number;
   y: number;
-  w = 24;
-  h = 24;
+  w = 32;
+  h = 32;
   alive = true;
-  invulnerable = 0; // seconds remaining of post-respawn invulnerability
+  invulnerable = 0;
+  boosts: Map<PowerUpType, number> = new Map();   // type -> remaining sec
+  sprite: HTMLImageElement;
 
-  constructor() {
+  constructor(sprite: HTMLImageElement) {
     this.x = PLAYFIELD_W / 2;
     this.y = PLAYFIELD_H - 60;
+    this.sprite = sprite;
   }
 
   update(dt: number, input: InputState) {
-    if (input.left) this.x -= PLAYER_SPEED * dt;
-    if (input.right) this.x += PLAYER_SPEED * dt;
+    const speedMult = this.boosts.has('slowmo') ? 1.4 : 1; // player can dodge faster during slow-mo on enemies
+    if (input.left) this.x -= PLAYER_SPEED * speedMult * dt;
+    if (input.right) this.x += PLAYER_SPEED * speedMult * dt;
     this.x = Math.max(this.w / 2, Math.min(PLAYFIELD_W - this.w / 2, this.x));
     if (this.invulnerable > 0) this.invulnerable -= dt;
+    // Tick down boosts
+    for (const [type, remaining] of this.boosts) {
+      if (remaining === Infinity) continue;
+      const next = remaining - dt;
+      if (next <= 0) this.boosts.delete(type);
+      else this.boosts.set(type, next);
+    }
+  }
+
+  getFireRate(): number {
+    return this.boosts.has('firerate')
+      ? PLAYER_BASE_FIRE_RATE * FIRERATE_BOOST
+      : PLAYER_BASE_FIRE_RATE;
+  }
+
+  isInvincible(): boolean {
+    return this.invulnerable > 0 || this.boosts.has('invincible');
+  }
+
+  hasShield(): boolean {
+    return this.boosts.has('shield');
+  }
+
+  consumeShield() {
+    this.boosts.delete('shield');
+  }
+
+  applyPowerUp(type: PowerUpType): boolean {
+    if (type === 'life') return false; // caller handles life as engine-state
+    const duration = POWERUP_DURATION[type as Exclude<PowerUpType, 'life'>];
+    this.boosts.set(type, duration);
+    return true;
   }
 
   render(ctx: CanvasRenderingContext2D) {
-    // Blink during invulnerability
-    if (this.invulnerable > 0 && Math.floor(this.invulnerable * 10) % 2 === 0) return;
+    if (this.invulnerable > 0 && Math.floor(this.invulnerable * 12) % 2 === 0) return;
     ctx.save();
     ctx.translate(this.x, this.y);
-    // Placeholder triangular ship (will become mfer/Noun art in 5b)
-    ctx.fillStyle = '#00ffd0';
-    ctx.shadowColor = '#00ffd0';
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    ctx.moveTo(0, -this.h / 2);
-    ctx.lineTo(-this.w / 2, this.h / 2);
-    ctx.lineTo(this.w / 2, this.h / 2);
-    ctx.closePath();
-    ctx.fill();
-    // Cockpit
-    ctx.fillStyle = '#ffe000';
-    ctx.shadowBlur = 0;
-    ctx.fillRect(-3, -2, 6, 6);
+    // Halo if shield
+    if (this.hasShield() || this.boosts.has('invincible')) {
+      ctx.fillStyle = 'rgba(0, 255, 240, 0.35)';
+      ctx.beginPath();
+      ctx.arc(0, 0, this.w * 0.85, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Multiplier glow
+    if (this.boosts.has('multiplier')) {
+      ctx.shadowColor = '#ffe000';
+      ctx.shadowBlur = 12;
+    }
+    ctx.drawImage(this.sprite, -this.w / 2, -this.h / 2, this.w, this.h);
     ctx.restore();
   }
 }
+
+// ============================================================
+// Bullets
+// ============================================================
 
 class Bullet implements Entity {
   x: number;
   y: number;
-  w = 3;
-  h = 10;
+  w: number;
+  h: number;
   alive = true;
-  velocityY: number;
+  vx: number;
+  vy: number;
   fromPlayer: boolean;
+  color: string;
+  piercing: boolean;
 
-  constructor(x: number, y: number, fromPlayer: boolean) {
+  constructor(x: number, y: number, fromPlayer: boolean, vx = 0, vy?: number, color?: string, piercing = false) {
     this.x = x;
     this.y = y;
     this.fromPlayer = fromPlayer;
-    this.velocityY = fromPlayer ? -BULLET_SPEED : BULLET_SPEED * 0.6;
+    this.w = 4;
+    this.h = 12;
+    this.vx = vx;
+    this.vy = vy ?? (fromPlayer ? -BULLET_SPEED : ENEMY_BULLET_SPEED);
+    this.color = color ?? (fromPlayer ? '#ffe000' : '#ff4444');
+    this.piercing = piercing;
   }
 
   update(dt: number) {
-    this.y += this.velocityY * dt;
-    if (this.y < -10 || this.y > PLAYFIELD_H + 10) this.alive = false;
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    if (this.y < -20 || this.y > PLAYFIELD_H + 20 || this.x < -20 || this.x > PLAYFIELD_W + 20) {
+      this.alive = false;
+    }
   }
 
   render(ctx: CanvasRenderingContext2D) {
     ctx.save();
-    ctx.fillStyle = this.fromPlayer ? '#ffe000' : '#ff4444';
-    ctx.shadowColor = ctx.fillStyle as string;
-    ctx.shadowBlur = 6;
+    ctx.fillStyle = this.color;
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 8;
     ctx.fillRect(this.x - this.w / 2, this.y - this.h / 2, this.w, this.h);
     ctx.restore();
   }
 }
+
+// ============================================================
+// Enemies
+// ============================================================
 
 type EnemyState = 'formation-entering' | 'formation' | 'diving';
 
 class Enemy implements Entity {
   x: number;
   y: number;
-  w = 24;
-  h = 22;
+  w = 28;
+  h = 28;
   alive = true;
+  tier: EnemyTier;
+  hp: number;
   state: EnemyState = 'formation-entering';
-  /** Target slot in the formation grid */
   formationX: number;
   formationY: number;
-  /** For entry: bezier-like curve from entry point to formation slot */
-  entryProgress = 0;     // 0..1
+  entryProgress = 0;
   entryStartX: number;
   entryStartY: number;
-  /** For diving: path is a series of points */
-  diveT = 0;             // 0..1 along dive path
+  diveT = 0;
   diveStartX = 0;
   diveStartY = 0;
-  /** Index in wave for staggered formation entry */
+  fireCooldown = 1 + Math.random() * 2;
   index: number;
+  sprite: HTMLImageElement;
 
-  constructor(index: number, formationX: number, formationY: number, entryStartX: number, entryStartY: number) {
+  constructor(
+    tier: EnemyTier,
+    index: number,
+    formationX: number, formationY: number,
+    entryStartX: number, entryStartY: number,
+    sprite: HTMLImageElement,
+  ) {
+    this.tier = tier;
     this.index = index;
     this.formationX = formationX;
     this.formationY = formationY;
@@ -175,19 +330,21 @@ class Enemy implements Entity {
     this.entryStartY = entryStartY;
     this.x = entryStartX;
     this.y = entryStartY;
+    this.hp = ENEMY_STATS[tier].hp;
+    this.sprite = sprite;
   }
 
-  update(dt: number, t: number) {
+  update(dt: number, t: number, playerX: number, fireCallback: (bullets: Bullet[]) => void) {
+    const speedMult = ENEMY_STATS[this.tier].speed_mult;
+
     if (this.state === 'formation-entering') {
-      this.entryProgress += dt * 0.5; // 2 sec to enter
+      this.entryProgress += dt * 0.5 * speedMult;
       if (this.entryProgress >= 1) {
         this.entryProgress = 1;
         this.state = 'formation';
         this.x = this.formationX;
         this.y = this.formationY;
       } else {
-        // Quadratic bezier from start to formation via a midpoint that
-        // gives the curve a nice swoop
         const p = this.entryProgress;
         const mx = this.entryStartX < PLAYFIELD_W / 2 ? PLAYFIELD_W * 0.8 : PLAYFIELD_W * 0.2;
         const my = PLAYFIELD_H * 0.4;
@@ -196,27 +353,43 @@ class Enemy implements Entity {
         this.y = oneP * oneP * this.entryStartY + 2 * oneP * p * my + p * p * this.formationY;
       }
     } else if (this.state === 'formation') {
-      // Sway in formation
       const phase = t + this.index * 0.3;
-      this.x = this.formationX + Math.sin(phase * 1.5) * ENEMY_FORMATION_AMPLITUDE;
-    } else if (this.state === 'diving') {
-      this.diveT += dt * 0.8;
-      if (this.diveT >= 1) {
-        // Loop back to formation off-screen
-        if (this.y > PLAYFIELD_H + 30) {
-          this.state = 'formation-entering';
-          this.entryProgress = 0;
-          this.entryStartX = Math.random() < 0.5 ? -30 : PLAYFIELD_W + 30;
-          this.entryStartY = -30;
-          this.diveT = 0;
+      this.x = this.formationX + Math.sin(phase * 1.5) * 24;
+
+      // Snipers fire from formation
+      if (ENEMY_STATS[this.tier].can_fire) {
+        this.fireCooldown -= dt;
+        if (this.fireCooldown <= 0) {
+          // Sniper fires straight down at player's x
+          if (this.tier === 'sniper') {
+            fireCallback([new Bullet(this.x, this.y + 14, false, 0, ENEMY_BULLET_SPEED, '#ff4444')]);
+          } else if (this.tier === 'bomber') {
+            // 3-spread shot
+            fireCallback([
+              new Bullet(this.x, this.y + 14, false, -60, ENEMY_BULLET_SPEED * 0.8, '#ff8800'),
+              new Bullet(this.x, this.y + 14, false,   0, ENEMY_BULLET_SPEED * 0.8, '#ff8800'),
+              new Bullet(this.x, this.y + 14, false,  60, ENEMY_BULLET_SPEED * 0.8, '#ff8800'),
+            ]);
+          }
+          this.fireCooldown = 2.5 + Math.random() * 3;
         }
       }
-      // Sine-arc dive path
+    } else if (this.state === 'diving') {
+      this.diveT += dt * 0.8 * speedMult;
+      // Loop back if went off-screen
+      if (this.y > PLAYFIELD_H + 30) {
+        this.state = 'formation-entering';
+        this.entryProgress = 0;
+        this.entryStartX = Math.random() < 0.5 ? -30 : PLAYFIELD_W + 30;
+        this.entryStartY = -30;
+        this.diveT = 0;
+        return;
+      }
       const t01 = this.diveT;
-      const targetX = this.formationX; // back to original X at the bottom — but offset by sine
-      const xCurve = Math.sin(t01 * Math.PI * 1.5) * 80;
+      const targetX = this.tier === 'runner' ? playerX : this.formationX;
+      const xCurve = Math.sin(t01 * Math.PI * 1.5) * (this.tier === 'runner' ? 40 : 80);
       this.x = this.diveStartX + (targetX - this.diveStartX) * t01 + xCurve;
-      this.y = this.diveStartY + ENEMY_DIVE_SPEED * 2 * t01;
+      this.y = this.diveStartY + 200 * 2 * t01 * speedMult;
     }
   }
 
@@ -228,25 +401,248 @@ class Enemy implements Entity {
     this.diveStartY = this.y;
   }
 
+  takeDamage(dmg: number): boolean {
+    this.hp -= dmg;
+    if (this.hp <= 0) {
+      this.alive = false;
+      return true;
+    }
+    return false;
+  }
+
   render(ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.translate(this.x, this.y);
-    // Placeholder mfer-grunt enemy (will be real mfer sprite in 5b)
-    ctx.fillStyle = '#ff1ad9';
-    ctx.shadowColor = '#ff1ad9';
-    ctx.shadowBlur = 6;
-    ctx.fillRect(-this.w / 2, -this.h / 2, this.w, this.h);
-    // Eyes
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowBlur = 0;
-    ctx.fillRect(-7, -5, 4, 4);
-    ctx.fillRect(3, -5, 4, 4);
-    // Mouth (smirk)
-    ctx.fillStyle = '#000';
-    ctx.fillRect(-5, 4, 10, 2);
+    ctx.drawImage(this.sprite, -this.w / 2, -this.h / 2, this.w, this.h);
+    ctx.restore();
+  }
+
+  /** Score reward when killed in current state (dive vs formation) */
+  getScoreReward(): number {
+    const base = ENEMY_STATS[this.tier].score;
+    if (this.state === 'diving') return base;
+    return Math.floor(base * ENEMY_STATS[this.tier].dive_score_bonus);
+  }
+
+  getDropChance(): number {
+    return ENEMY_STATS[this.tier].drop_chance;
+  }
+}
+
+// ============================================================
+// Boss
+// ============================================================
+
+class Boss implements Entity {
+  x: number;
+  y: number;
+  w = 80;
+  h = 80;
+  alive = true;
+  hp: number;
+  maxHp: number;
+  name: string;
+  pattern: BossDescriptor['pattern'];
+  sprite: HTMLImageElement;
+  color: string;
+  // Movement
+  moveT = 0;
+  // Firing
+  fireCooldown = 1.0;
+  spiralAngle = 0;
+
+  constructor(desc: BossDescriptor, sprite: HTMLImageElement) {
+    this.x = PLAYFIELD_W / 2;
+    this.y = 100;
+    this.hp = desc.hp;
+    this.maxHp = desc.hp;
+    this.name = desc.name;
+    this.pattern = desc.pattern;
+    this.sprite = sprite;
+    this.color = desc.color;
+  }
+
+  update(dt: number, t: number, playerX: number, fireCallback: (bullets: Bullet[]) => void) {
+    this.moveT += dt;
+    // Horizontal swaying
+    this.x = PLAYFIELD_W / 2 + Math.sin(this.moveT * 0.7) * (PLAYFIELD_W * 0.3);
+    // Slight vertical bob
+    this.y = 100 + Math.sin(this.moveT * 0.4) * 20;
+
+    this.fireCooldown -= dt;
+    if (this.fireCooldown <= 0) {
+      const bullets: Bullet[] = [];
+      switch (this.pattern) {
+        case 'spiral': {
+          // Damager: rotating spiral spread
+          for (let i = 0; i < 5; i++) {
+            const angle = this.spiralAngle + (i * Math.PI * 2 / 5);
+            bullets.push(new Bullet(
+              this.x, this.y + 30, false,
+              Math.cos(angle) * 200,
+              Math.sin(angle) * 200 + 80,
+              '#ff1ad9',
+            ));
+          }
+          this.spiralAngle += 0.4;
+          this.fireCooldown = 0.5;
+          break;
+        }
+        case 'sweep': {
+          // Doomed Red: wide horizontal sweep
+          for (let i = -3; i <= 3; i++) {
+            bullets.push(new Bullet(
+              this.x + i * 18, this.y + 30, false,
+              i * 40,
+              ENEMY_BULLET_SPEED,
+              '#ff3355',
+            ));
+          }
+          this.fireCooldown = 1.2;
+          break;
+        }
+        case 'rain': {
+          // Rage: random rain from above
+          for (let i = 0; i < 4; i++) {
+            bullets.push(new Bullet(
+              this.x + (Math.random() - 0.5) * 200,
+              this.y + 30, false,
+              (Math.random() - 0.5) * 80,
+              ENEMY_BULLET_SPEED + Math.random() * 80,
+              '#ff0000',
+            ));
+          }
+          this.fireCooldown = 0.4;
+          break;
+        }
+        case 'beam': {
+          // Special Op: aimed beam at player + 2 flankers
+          const dx = playerX - this.x;
+          const dy = (PLAYFIELD_H - 60) - this.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const nx = dx / dist;
+          const ny = dy / dist;
+          const speed = 320;
+          for (let i = -1; i <= 1; i++) {
+            bullets.push(new Bullet(
+              this.x, this.y + 30, false,
+              nx * speed + i * 50,
+              ny * speed,
+              '#3a55ff',
+            ));
+          }
+          this.fireCooldown = 0.8;
+          break;
+        }
+        case 'rage': {
+          // Beast: alternating spirals + occasional spread
+          for (let i = 0; i < 6; i++) {
+            const angle = this.spiralAngle + (i * Math.PI * 2 / 6);
+            bullets.push(new Bullet(
+              this.x, this.y + 30, false,
+              Math.cos(angle) * 220,
+              Math.sin(angle) * 220 + 60,
+              '#00d5cc',
+            ));
+          }
+          this.spiralAngle += 0.5;
+          this.fireCooldown = 0.4;
+          break;
+        }
+        case 'mixed': {
+          // Max Pain: rotates through patterns
+          const subPattern = Math.floor(this.moveT * 0.5) % 3;
+          if (subPattern === 0) {
+            for (let i = 0; i < 7; i++) {
+              const a = this.spiralAngle + (i * Math.PI * 2 / 7);
+              bullets.push(new Bullet(this.x, this.y + 30, false, Math.cos(a) * 240, Math.sin(a) * 240 + 80, '#ff1ad9'));
+            }
+            this.spiralAngle += 0.3;
+          } else if (subPattern === 1) {
+            for (let i = -4; i <= 4; i++) {
+              bullets.push(new Bullet(this.x + i * 14, this.y + 30, false, i * 30, ENEMY_BULLET_SPEED * 1.2, '#00ffd0'));
+            }
+          } else {
+            const dx = playerX - this.x;
+            const dy = (PLAYFIELD_H - 60) - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            for (let i = -2; i <= 2; i++) {
+              bullets.push(new Bullet(this.x, this.y + 30, false, (dx / dist) * 360 + i * 40, (dy / dist) * 360, '#ffe000'));
+            }
+          }
+          this.fireCooldown = 0.4;
+          break;
+        }
+      }
+      fireCallback(bullets);
+    }
+  }
+
+  takeDamage(dmg: number): boolean {
+    this.hp -= dmg;
+    if (this.hp <= 0) {
+      this.alive = false;
+      return true;
+    }
+    return false;
+  }
+
+  render(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    // Subtle scale pulse when low HP
+    const lowHp = this.hp / this.maxHp < 0.3;
+    const scale = lowHp ? 1 + Math.sin(this.moveT * 8) * 0.05 : 1;
+    ctx.scale(scale, scale);
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = lowHp ? 24 : 12;
+    ctx.drawImage(this.sprite, -this.w / 2, -this.h / 2, this.w, this.h);
     ctx.restore();
   }
 }
+
+// ============================================================
+// PowerUp drop
+// ============================================================
+
+class PowerUpDrop implements Entity {
+  x: number;
+  y: number;
+  w = 24;
+  h = 24;
+  alive = true;
+  type: PowerUpType;
+  sprite: HTMLImageElement;
+  spawnT = 0;
+
+  constructor(x: number, y: number, type: PowerUpType, sprite: HTMLImageElement) {
+    this.x = x;
+    this.y = y;
+    this.type = type;
+    this.sprite = sprite;
+  }
+
+  update(dt: number) {
+    this.y += 80 * dt;
+    this.spawnT += dt;
+    if (this.y > PLAYFIELD_H + 30) this.alive = false;
+  }
+
+  render(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    const bob = Math.sin(this.spawnT * 4) * 2;
+    ctx.translate(0, bob);
+    ctx.shadowColor = '#00ffd0';
+    ctx.shadowBlur = 10;
+    ctx.drawImage(this.sprite, -this.w / 2, -this.h / 2, this.w, this.h);
+    ctx.restore();
+  }
+}
+
+// ============================================================
+// Particles
+// ============================================================
 
 class Particle {
   x: number;
@@ -257,15 +653,17 @@ class Particle {
   maxLife: number;
   color: string;
   alive = true;
+  size: number;
 
-  constructor(x: number, y: number, color: string) {
+  constructor(x: number, y: number, color: string, big = false) {
     this.x = x;
     this.y = y;
-    this.vx = (Math.random() - 0.5) * 240;
-    this.vy = (Math.random() - 0.5) * 240;
-    this.maxLife = 0.4 + Math.random() * 0.3;
+    this.vx = (Math.random() - 0.5) * (big ? 400 : 240);
+    this.vy = (Math.random() - 0.5) * (big ? 400 : 240);
+    this.maxLife = (big ? 0.7 : 0.4) + Math.random() * 0.3;
     this.life = this.maxLife;
     this.color = color;
+    this.size = big ? 5 : 3;
   }
 
   update(dt: number) {
@@ -284,8 +682,8 @@ class Particle {
     ctx.fillStyle = this.color;
     ctx.shadowColor = this.color;
     ctx.shadowBlur = 6;
-    const size = 3 + alpha * 3;
-    ctx.fillRect(this.x - size / 2, this.y - size / 2, size, size);
+    const s = this.size + alpha * 2;
+    ctx.fillRect(this.x - s / 2, this.y - s / 2, s, s);
     ctx.restore();
   }
 }
@@ -301,6 +699,55 @@ interface InputState {
 }
 
 // ============================================================
+// Wave composition — per wave: how many of each enemy tier
+// ============================================================
+
+function buildWaveComposition(wave: number): { tier: EnemyTier; count: number }[] {
+  // Boss waves have no formation enemies (just the boss)
+  if (BOSSES[wave]) return [];
+
+  if (wave <= 4) {
+    return [{ tier: 'grunt', count: 12 + wave * 2 }];
+  }
+  if (wave <= 9) {
+    return [
+      { tier: 'grunt', count: 10 + wave },
+      { tier: 'runner', count: Math.floor((wave - 4) * 2) },
+    ];
+  }
+  if (wave <= 14) {
+    return [
+      { tier: 'grunt', count: 12 + Math.floor(wave / 2) },
+      { tier: 'runner', count: 4 + Math.floor((wave - 9) * 1.5) },
+      { tier: 'sniper', count: 2 + Math.floor((wave - 9) * 0.8) },
+    ];
+  }
+  if (wave <= 19) {
+    return [
+      { tier: 'grunt', count: 14 },
+      { tier: 'runner', count: 6 },
+      { tier: 'sniper', count: 4 },
+      { tier: 'bomber', count: Math.floor((wave - 14) * 1.2) },
+    ];
+  }
+  if (wave <= 24) {
+    return [
+      { tier: 'grunt', count: 16 },
+      { tier: 'runner', count: 7 },
+      { tier: 'sniper', count: 5 },
+      { tier: 'bomber', count: 3 + Math.floor((wave - 19) * 0.6) },
+    ];
+  }
+  // 26-29: max
+  return [
+    { tier: 'grunt', count: 18 },
+    { tier: 'runner', count: 8 },
+    { tier: 'sniper', count: 6 },
+    { tier: 'bomber', count: 5 },
+  ];
+}
+
+// ============================================================
 // Game Engine
 // ============================================================
 
@@ -308,6 +755,7 @@ export class GameEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private callbacks: GameCallbacks;
+  private assets: AssetBundle;
 
   // State
   private phase: GamePhase = 'pre-game';
@@ -315,32 +763,38 @@ export class GameEngine {
   private score = 0;
   private lives = STARTING_LIVES;
   private streak = 0;
-  private bestStreak = 0;
 
   // Entities
-  private player: Player = new Player();
+  private player!: Player;
   private bullets: Bullet[] = [];
   private enemies: Enemy[] = [];
+  private boss: Boss | null = null;
+  private powerUps: PowerUpDrop[] = [];
   private particles: Particle[] = [];
 
   // Loop
-  private lastTime = 0;
   private rafId: number | null = null;
+  private lastTime = 0;
   private running = false;
-  private elapsed = 0;       // total game time
-  private phaseTime = 0;     // time in current phase
+  private elapsed = 0;
+  private phaseTime = 0;
   private fireCooldown = 0;
-  private diveTimer = 0;     // time until next enemy dives
+  private diveTimer = 0;
 
-  // Input ref — set externally by React
   private input: InputState = { left: false, right: false, fire: false };
 
-  constructor(canvas: HTMLCanvasElement, callbacks: GameCallbacks = {}) {
+  constructor(canvas: HTMLCanvasElement, assets: AssetBundle, callbacks: GameCallbacks = {}) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Could not get canvas 2D context');
     this.ctx = ctx;
+    this.assets = assets;
     this.callbacks = callbacks;
+    this.player = new Player(this.spriteOf('player-ship'));
+  }
+
+  private spriteOf(key: SpriteKey): HTMLImageElement {
+    return this.assets.sprites.get(key)!;
   }
 
   setInput(input: Partial<InputState>) {
@@ -366,11 +820,12 @@ export class GameEngine {
     this.score = 0;
     this.lives = STARTING_LIVES;
     this.streak = 0;
-    this.bestStreak = 0;
-    this.player = new Player();
+    this.player = new Player(this.spriteOf('player-ship'));
     this.bullets = [];
     this.enemies = [];
+    this.powerUps = [];
     this.particles = [];
+    this.boss = null;
     this.elapsed = 0;
     this.emitStats();
     this.emitPhase();
@@ -379,138 +834,180 @@ export class GameEngine {
   private loop = () => {
     if (!this.running) return;
     const now = performance.now();
-    const dt = Math.min(0.05, (now - this.lastTime) / 1000);
+    let dt = Math.min(0.05, (now - this.lastTime) / 1000);
     this.lastTime = now;
+
+    // Slow-mo affects enemies + bullets, not player input or rendering
+    const enemySpeedScale = this.player.boosts.has('slowmo') ? SLOWMO_FACTOR : 1;
+
     this.elapsed += dt;
     this.phaseTime += dt;
 
-    this.update(dt);
+    this.update(dt, enemySpeedScale);
     this.render();
 
     this.rafId = requestAnimationFrame(this.loop);
   };
 
-  private update(dt: number) {
+  private update(dt: number, enemySpeedScale: number) {
+    // Player updates regardless of phase
+    this.player.update(dt, this.input);
+    this.updatePlayerFire(dt);
+
+    // Bullets/particles/powerups always tick
+    for (const b of this.bullets) {
+      // Slow-mo affects enemy bullets only
+      const slow = !b.fromPlayer ? enemySpeedScale : 1;
+      b.x += b.vx * dt * slow;
+      b.y += b.vy * dt * slow;
+      if (b.y < -20 || b.y > PLAYFIELD_H + 20 || b.x < -20 || b.x > PLAYFIELD_W + 20) {
+        b.alive = false;
+      }
+    }
+    this.bullets = this.bullets.filter((b) => b.alive);
+    for (const p of this.particles) p.update(dt);
+    this.particles = this.particles.filter((p) => p.alive);
+    for (const u of this.powerUps) u.update(dt);
+    this.powerUps = this.powerUps.filter((u) => u.alive);
+
     if (this.phase === 'wave-intro') {
-      // Hold for ~1.5 sec then spawn formation
       if (this.phaseTime > 1.5) {
-        this.spawnFormation();
+        const isBoss = !!BOSSES[this.wave];
+        if (isBoss) this.spawnBoss();
+        else this.spawnFormation();
         this.phase = 'playing';
         this.phaseTime = 0;
         this.diveTimer = 1.5;
         this.emitPhase();
       }
-      // Render only — player is interactive but no enemies yet
-      this.player.update(dt, this.input);
-      this.updateBullets(dt);
-      this.updateParticles(dt);
       return;
     }
 
     if (this.phase === 'playing') {
-      this.player.update(dt, this.input);
-
-      // Fire
-      this.fireCooldown -= dt;
-      if (this.input.fire && this.fireCooldown <= 0) {
-        this.bullets.push(new Bullet(this.player.x, this.player.y - 14, true));
-        this.fireCooldown = 1 / PLAYER_FIRE_RATE;
+      // Enemies
+      for (const e of this.enemies) {
+        if (!e.alive) continue;
+        // Pass slow-mo by scaling time delta on enemies only
+        e.update(dt * enemySpeedScale, this.elapsed, this.player.x, (bullets) => this.bullets.push(...bullets));
       }
 
-      this.updateBullets(dt);
-      this.updateParticles(dt);
+      // Boss
+      if (this.boss?.alive) {
+        this.boss.update(dt * enemySpeedScale, this.elapsed, this.player.x, (bullets) => this.bullets.push(...bullets));
+      }
 
-      // Update enemies
-      for (const e of this.enemies) e.update(dt, this.elapsed);
-
-      // Trigger dives periodically
+      // Trigger dives
       this.diveTimer -= dt;
       if (this.diveTimer <= 0) {
-        const formationMembers = this.enemies.filter((e) => e.state === 'formation' && e.alive);
-        if (formationMembers.length > 0) {
-          const picker = formationMembers[Math.floor(Math.random() * formationMembers.length)];
-          picker.startDive();
+        const candidates = this.enemies.filter((e) => e.state === 'formation' && e.alive);
+        if (candidates.length > 0) {
+          const idx = Math.floor(Math.random() * candidates.length);
+          candidates[idx].startDive();
         }
-        this.diveTimer = 1.0 + Math.random() * 0.8;
+        // Faster dives on later waves
+        const baseInterval = Math.max(0.4, 1.2 - this.wave * 0.02);
+        this.diveTimer = baseInterval + Math.random() * 0.6;
+      }
+
+      // PowerUp pickups
+      for (const u of this.powerUps) {
+        if (!u.alive) continue;
+        if (rectsOverlap(this.player, u)) {
+          u.alive = false;
+          this.applyPowerUp(u.type);
+        }
       }
 
       this.checkCollisions();
 
-      // Wave clear check — only if at least one enemy was ever spawned
-      const aliveEnemies = this.enemies.filter((e) => e.alive);
-      if (aliveEnemies.length === 0) {
-        this.phase = 'wave-clear';
-        this.phaseTime = 0;
-        // Wave clear bonus
+      // Wave clear
+      const enemiesAlive = this.enemies.some((e) => e.alive);
+      const bossAlive = this.boss?.alive ?? false;
+      if (!enemiesAlive && !bossAlive) {
         this.score += 100 * this.wave;
+        if (this.wave === MAX_WAVES) {
+          this.phase = 'victory';
+          this.phaseTime = 0;
+          this.emitPhase();
+        } else {
+          this.phase = 'wave-clear';
+          this.phaseTime = 0;
+          this.emitPhase();
+        }
+        this.emitStats();
+      }
+      return;
+    }
+
+    if (this.phase === 'wave-clear') {
+      if (this.phaseTime > 2.5) {
+        this.wave += 1;
+        this.phase = 'wave-intro';
+        this.phaseTime = 0;
         this.emitStats();
         this.emitPhase();
       }
       return;
     }
 
-    if (this.phase === 'wave-clear') {
-      // Show wave clear briefly, then next wave (or end if 3 waves done in 5a)
-      if (this.phaseTime > 2) {
-        if (this.wave >= 3) {
-          // End of demo
-          this.phase = 'game-over';
-          this.phaseTime = 0;
-          this.emitPhase();
-        } else {
-          this.wave += 1;
-          this.phase = 'wave-intro';
-          this.phaseTime = 0;
-          this.emitStats();
-          this.emitPhase();
-        }
-      }
-      // Still update player/bullets/particles
-      this.player.update(dt, this.input);
-      this.updateBullets(dt);
-      this.updateParticles(dt);
-      return;
-    }
-
-    if (this.phase === 'game-over') {
-      this.updateParticles(dt);
+    if (this.phase === 'victory' || this.phase === 'game-over') {
+      // particles continue to fade
       return;
     }
   }
 
-  private updateBullets(dt: number) {
-    for (const b of this.bullets) b.update(dt);
-    this.bullets = this.bullets.filter((b) => b.alive);
-  }
-
-  private updateParticles(dt: number) {
-    for (const p of this.particles) p.update(dt);
-    this.particles = this.particles.filter((p) => p.alive);
+  private updatePlayerFire(dt: number) {
+    this.fireCooldown -= dt;
+    if (this.input.fire && this.fireCooldown <= 0 && this.phase === 'playing') {
+      const piercing = false; // future power-up
+      this.bullets.push(new Bullet(this.player.x, this.player.y - 18, true, 0, -BULLET_SPEED, '#ffe000', piercing));
+      this.fireCooldown = 1 / this.player.getFireRate();
+    }
   }
 
   private spawnFormation() {
-    // Grid: 6 cols × 3 rows = 18 enemies, scaled with wave
-    const cols = 6;
-    const rows = Math.min(3 + Math.floor(this.wave / 3), 5);
-    const slotW = 56;
-    const slotH = 44;
+    const composition = buildWaveComposition(this.wave);
+    const totalCount = composition.reduce((s, c) => s + c.count, 0);
+    const cols = 8;
+    const rows = Math.ceil(totalCount / cols);
+    const slotW = 50;
+    const slotH = 38;
     const gridW = cols * slotW;
     const startX = (PLAYFIELD_W - gridW) / 2 + slotW / 2;
-    const startY = 80;
+    const startY = 70;
+
+    // Flatten composition into a list of tiers in order
+    const tierList: EnemyTier[] = [];
+    for (const c of composition) {
+      // Place stronger tiers first (top rows) so they're at back
+      for (let i = 0; i < c.count; i++) tierList.push(c.tier);
+    }
+    // Sort: snipers/bombers to the top rows
+    const priority: Record<EnemyTier, number> = { bomber: 0, sniper: 1, runner: 2, grunt: 3 };
+    tierList.sort((a, b) => priority[a] - priority[b]);
 
     let index = 0;
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
+        if (index >= tierList.length) break;
+        const tier = tierList[index];
         const fx = startX + col * slotW;
         const fy = startY + row * slotH;
-        // Entry from alternating sides
         const fromLeft = (row + col) % 2 === 0;
         const exStart = fromLeft ? -30 : PLAYFIELD_W + 30;
         const eyStart = -30 - index * 8;
-        this.enemies.push(new Enemy(index, fx, fy, exStart, eyStart));
+        this.enemies.push(new Enemy(
+          tier, index, fx, fy, exStart, eyStart, this.spriteOf(ENEMY_SPRITE[tier]),
+        ));
         index++;
       }
     }
+  }
+
+  private spawnBoss() {
+    const desc = BOSSES[this.wave];
+    if (!desc) return;
+    this.boss = new Boss(desc, this.spriteOf(desc.sprite));
   }
 
   private checkCollisions() {
@@ -521,29 +1018,105 @@ export class GameEngine {
         if (!e.alive) continue;
         if (rectsOverlap(b, e)) {
           b.alive = false;
-          e.alive = false;
-          this.score += ENEMY_SCORE * this.currentMultiplier();
-          this.streak += 1;
-          this.bestStreak = Math.max(this.bestStreak, this.streak);
-          this.explode(e.x, e.y, '#ff1ad9');
+          const score = e.getScoreReward();
+          const killed = e.takeDamage(1);
+          if (killed) {
+            this.score += score * this.currentMultiplier();
+            this.streak += 1;
+            this.explode(e.x, e.y, '#ff1ad9', false);
+            // Drop chance
+            if (Math.random() < e.getDropChance()) {
+              this.spawnRandomPowerUp(e.x, e.y);
+            }
+            this.emitStats();
+          }
+          break;
+        }
+      }
+      // Player bullet vs boss
+      if (b.alive && this.boss?.alive && rectsOverlap(b, this.boss)) {
+        b.alive = false;
+        const killed = this.boss.takeDamage(1);
+        this.explode(b.x, b.y, this.boss.color, false);
+        if (killed) {
+          // Big payout
+          this.score += 5000 * this.currentMultiplier();
+          this.streak += 5;
+          this.explode(this.boss.x, this.boss.y, this.boss.color, true);
+          this.explode(this.boss.x, this.boss.y, '#ffe000', true);
+          // Bosses guarantee a power-up drop
+          this.spawnRandomPowerUp(this.boss.x, this.boss.y + 30);
+          this.boss = null;
           this.emitStats();
+        }
+      }
+    }
+
+    // Enemy bullets vs player
+    if (!this.player.isInvincible()) {
+      for (const b of this.bullets) {
+        if (b.fromPlayer || !b.alive) continue;
+        if (rectsOverlap(this.player, b)) {
+          b.alive = false;
+          this.onPlayerHit();
           break;
         }
       }
     }
 
-    // Enemies vs player
-    if (this.player.invulnerable <= 0) {
+    // Enemies vs player (ramming)
+    if (!this.player.isInvincible()) {
       for (const e of this.enemies) {
         if (!e.alive) continue;
         if (rectsOverlap(this.player, e)) {
           this.onPlayerHit();
           e.alive = false;
-          this.explode(e.x, e.y, '#ff1ad9');
+          this.explode(e.x, e.y, '#ff1ad9', false);
           break;
         }
       }
     }
+
+    // Boss vs player (only if very close — bosses don't ram, but contact damage)
+    if (!this.player.isInvincible() && this.boss?.alive && rectsOverlap(this.player, this.boss)) {
+      this.onPlayerHit();
+    }
+  }
+
+  private spawnRandomPowerUp(x: number, y: number) {
+    // Weighted: rarer power-ups are less common
+    const weights: { type: PowerUpType; weight: number }[] = [
+      { type: 'multiplier', weight: 30 },     // most common, just bonus points
+      { type: 'shield',     weight: 22 },
+      { type: 'firerate',   weight: 20 },
+      { type: 'slowmo',     weight: 12 },
+      { type: 'life',       weight: 8 },
+      { type: 'invincible', weight: 8 },
+    ];
+    const total = weights.reduce((s, w) => s + w.weight, 0);
+    let r = Math.random() * total;
+    let chosen: PowerUpType = 'multiplier';
+    for (const w of weights) {
+      r -= w.weight;
+      if (r <= 0) { chosen = w.type; break; }
+    }
+    this.powerUps.push(new PowerUpDrop(x, y, chosen, this.spriteOf(POWERUP_SPRITE[chosen])));
+  }
+
+  private applyPowerUp(type: PowerUpType) {
+    if (type === 'life') {
+      this.lives += 1;
+      this.explode(this.player.x, this.player.y - 20, '#00ffd0', false);
+    } else if (type === 'multiplier') {
+      // Instant bonus + temporary multiplier
+      this.score += POWERUP_SCORE * this.currentMultiplier();
+      this.player.applyPowerUp(type);
+    } else {
+      this.player.applyPowerUp(type);
+    }
+    // Pickup sparkle
+    this.explode(this.player.x, this.player.y - 20, '#ffe000', false);
+    this.emitStats();
   }
 
   private currentMultiplier(): number {
@@ -551,33 +1124,47 @@ export class GameEngine {
     for (const t of STREAK_THRESHOLDS) {
       if (this.streak >= t.count) m = t.multiplier;
     }
+    if (this.player.boosts.has('multiplier')) m *= SCORE_MULTIPLIER_BOOST;
     return m;
   }
 
   private onPlayerHit() {
+    // Shield absorbs first hit
+    if (this.player.hasShield()) {
+      this.player.consumeShield();
+      this.player.invulnerable = 0.5;
+      this.explode(this.player.x, this.player.y, '#00ffd0', false);
+      this.emitStats();
+      return;
+    }
     this.lives -= 1;
     this.streak = 0;
-    this.explode(this.player.x, this.player.y, '#00ffd0');
+    this.explode(this.player.x, this.player.y, '#00ffd0', true);
     this.emitStats();
     if (this.lives <= 0) {
       this.phase = 'game-over';
       this.phaseTime = 0;
       this.emitPhase();
     } else {
-      this.player = new Player();
-      this.player.invulnerable = 1.5;
+      // Re-create player, preserve no boosts
+      this.player = new Player(this.spriteOf('player-ship'));
+      this.player.invulnerable = RESPAWN_INVULN_SEC;
     }
   }
 
-  private explode(x: number, y: number, color: string) {
-    for (let i = 0; i < 14; i++) {
-      this.particles.push(new Particle(x, y, color));
+  private explode(x: number, y: number, color: string, big: boolean) {
+    const n = big ? 28 : 14;
+    for (let i = 0; i < n; i++) {
+      this.particles.push(new Particle(x, y, color, big));
     }
   }
+
+  // ============================================================
+  // Rendering
+  // ============================================================
 
   private render() {
     const ctx = this.ctx;
-    // Fit canvas with scaling — game uses logical 480x640
     const scale = Math.min(this.canvas.width / PLAYFIELD_W, this.canvas.height / PLAYFIELD_H);
     const ox = (this.canvas.width - PLAYFIELD_W * scale) / 2;
     const oy = (this.canvas.height - PLAYFIELD_H * scale) / 2;
@@ -585,35 +1172,45 @@ export class GameEngine {
     ctx.save();
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
     ctx.translate(ox, oy);
     ctx.scale(scale, scale);
 
-    // Star field background
+    // Background star field
     this.renderStars(ctx);
 
-    // Entities
+    // Entities (order matters for z)
+    for (const u of this.powerUps) u.render(ctx);
     for (const e of this.enemies) if (e.alive) e.render(ctx);
+    if (this.boss?.alive) this.boss.render(ctx);
     for (const b of this.bullets) b.render(ctx);
     for (const p of this.particles) p.render(ctx);
     if (this.player.alive && this.phase !== 'game-over') this.player.render(ctx);
 
-    // Phase text overlays
+    // Boss HP bar
+    if (this.boss?.alive) this.renderBossHpBar(ctx);
+
+    // Phase overlays
     if (this.phase === 'wave-intro') {
-      this.renderCenterText(ctx, `WAVE ${this.wave}`, `★ MFER SWARM INCOMING ★`);
+      const isBoss = !!BOSSES[this.wave];
+      if (isBoss) {
+        this.renderCenterText(ctx, '★ BOSS WAVE ★', BOSSES[this.wave].name, '#ff1ad9');
+      } else {
+        this.renderCenterText(ctx, `WAVE ${this.wave}`, '★ MFER SWARM ★', '#ffe000');
+      }
     } else if (this.phase === 'wave-clear') {
-      this.renderCenterText(ctx, `WAVE ${this.wave} CLEAR`, `+${100 * this.wave} BONUS`);
+      this.renderCenterText(ctx, `WAVE ${this.wave} CLEAR`, `+${100 * this.wave}`, '#00ffd0');
     } else if (this.phase === 'game-over') {
-      this.renderCenterText(ctx, `GAME OVER`, `SCORE ${this.score}`);
+      this.renderCenterText(ctx, 'GAME OVER', `SCORE ${this.score}`, '#ff1ad9');
+    } else if (this.phase === 'victory') {
+      this.renderCenterText(ctx, '★ VICTORY ★', `30 WAVES CLEARED · ${this.score}`, '#ffe000');
     }
 
     ctx.restore();
   }
 
   private renderStars(ctx: CanvasRenderingContext2D) {
-    // Pseudo-random static field
     ctx.save();
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 80; i++) {
       const x = (i * 73 + 37) % PLAYFIELD_W;
       const y = ((i * 113 + 191 + this.elapsed * 30) % PLAYFIELD_H);
       const size = (i % 5) === 0 ? 2 : 1;
@@ -624,38 +1221,74 @@ export class GameEngine {
     ctx.restore();
   }
 
-  private renderCenterText(ctx: CanvasRenderingContext2D, title: string, sub: string) {
+  private renderBossHpBar(ctx: CanvasRenderingContext2D) {
+    if (!this.boss) return;
+    const x = 20, y = 10, w = PLAYFIELD_W - 40, h = 10;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(x, y, w, h);
+    const pct = Math.max(0, this.boss.hp / this.boss.maxHp);
+    ctx.fillStyle = this.boss.color;
+    ctx.shadowColor = this.boss.color;
+    ctx.shadowBlur = 8;
+    ctx.fillRect(x, y, w * pct, h);
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.strokeRect(x, y, w, h);
+    // Name centered
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '10px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(this.boss.name, PLAYFIELD_W / 2, y + h + 12);
+    ctx.restore();
+  }
+
+  private renderCenterText(ctx: CanvasRenderingContext2D, title: string, sub: string, color: string) {
     ctx.save();
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#ffe000';
-    ctx.shadowColor = '#ffe000';
-    ctx.shadowBlur = 10;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
     ctx.font = 'bold 28px "Press Start 2P", monospace';
     ctx.fillText(title, PLAYFIELD_W / 2, PLAYFIELD_H / 2);
     ctx.fillStyle = '#00ffd0';
     ctx.shadowColor = '#00ffd0';
-    ctx.font = '12px "Press Start 2P", monospace';
+    ctx.font = '11px "Press Start 2P", monospace';
     ctx.fillText(sub, PLAYFIELD_W / 2, PLAYFIELD_H / 2 + 30);
     ctx.restore();
   }
 
-  // Public
+  // ============================================================
+  // Public API
+  // ============================================================
+
   getPhase(): GamePhase { return this.phase; }
+
   getStats(): GameStats {
+    const activeBoosts: ActiveBoost[] = [];
+    for (const [type, remaining] of this.player.boosts) {
+      activeBoosts.push({ type, remaining });
+    }
     return {
       score: this.score,
       lives: this.lives,
       wave: this.wave,
       streak: this.streak,
       multiplier: this.currentMultiplier(),
+      activeBoosts,
+      bossHp: this.boss
+        ? { current: this.boss.hp, max: this.boss.maxHp, name: this.boss.name }
+        : null,
     };
   }
 
-  private emitStats() {
-    this.callbacks.onStatsChange?.(this.getStats());
-  }
+  private emitStats() { this.callbacks.onStatsChange?.(this.getStats()); }
   private emitPhase() {
-    this.callbacks.onPhaseChange?.(this.phase, { score: this.score, wave: this.wave });
+    this.callbacks.onPhaseChange?.(this.phase, {
+      score: this.score, wave: this.wave,
+      bossName: this.boss?.name,
+    });
   }
 }
 

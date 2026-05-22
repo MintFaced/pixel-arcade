@@ -1,16 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { GameEngine, type GameStats, type GamePhase, PLAYFIELD_W, PLAYFIELD_H } from './engine';
+import { loadAssets, type AssetBundle } from './assets';
 import styles from './page.module.css';
 
 /**
- * /play — PixelArcade: SWARM (session 5a prototype).
+ * /play — PixelArcade: SWARM (session 5b).
  *
- * Hidden URL, no nav links. Single-player Galaga-style demo, 3 waves of
- * placeholder mfer-grunt enemies. Vanilla mode only (no perks yet — those
- * come in 5c with leaderboard backend).
+ * Crypto-native game: XNoun player ship, real mfer enemies fetched from IPFS,
+ * XCOPY-themed bosses every 5 waves, XNoun-headed power-ups.
+ *
+ * Pre-game: asset loader runs (local PNGs + 4 mfer IPFS fetches). Player
+ * sees a loading bar. Once "READY" the INSERT COIN button appears.
  */
 
 const KEY_MAP: Record<string, 'left' | 'right' | 'fire'> = {
@@ -23,19 +26,50 @@ const KEY_MAP: Record<string, 'left' | 'right' | 'fire'> = {
   KeyZ: 'fire',
 };
 
+interface LoadState {
+  loaded: number;
+  total: number;
+  current: string;
+  done: boolean;
+  failed: string[];
+}
+
 export default function PlayPage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<GameEngine | null>(null);
-  const [stats, setStats] = useState<GameStats>({ score: 0, lives: 3, wave: 1, streak: 0, multiplier: 1 });
+  const assetsRef = useRef<AssetBundle | null>(null);
+
+  const [loadState, setLoadState] = useState<LoadState>({ loaded: 0, total: 0, current: '', done: false, failed: [] });
+  const [stats, setStats] = useState<GameStats>({
+    score: 0, lives: 3, wave: 1, streak: 0, multiplier: 1,
+    activeBoosts: [], bossHp: null,
+  });
   const [phase, setPhase] = useState<GamePhase>('pre-game');
   const [running, setRunning] = useState(false);
 
-  // Initialize engine on mount
+  // === Asset loading ===
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const bundle = await loadAssets((loaded, total, current) => {
+        if (cancelled) return;
+        setLoadState((s) => ({ ...s, loaded, total, current }));
+      });
+      if (cancelled) return;
+      assetsRef.current = bundle;
+      setLoadState({ loaded: bundle.sprites.size, total: bundle.sprites.size, current: '', done: true, failed: bundle.failed });
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // === Engine init (after assets loaded + canvas mounted) ===
+  useEffect(() => {
+    if (!loadState.done) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const assets = assetsRef.current;
+    if (!assets) return;
 
-    // Set canvas dimensions matching display, scaled for DPR for crisp pixels
     const dpr = window.devicePixelRatio || 1;
     const setCanvasSize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -45,13 +79,12 @@ export default function PlayPage() {
     setCanvasSize();
     window.addEventListener('resize', setCanvasSize);
 
-    const engine = new GameEngine(canvas, {
+    const engine = new GameEngine(canvas, assets, {
       onStatsChange: (s) => setStats(s),
       onPhaseChange: (p) => setPhase(p),
     });
     engineRef.current = engine;
 
-    // Keyboard listeners
     const heldKeys = new Set<string>();
     const updateInput = () => {
       const input = { left: false, right: false, fire: false };
@@ -67,10 +100,7 @@ export default function PlayPage() {
         heldKeys.add(e.code);
         updateInput();
       }
-      // Enter / R to start or restart
-      if (e.code === 'Enter' || e.code === 'KeyR') {
-        startGame();
-      }
+      if (e.code === 'Enter' || e.code === 'KeyR') startGame();
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (KEY_MAP[e.code]) {
@@ -89,18 +119,17 @@ export default function PlayPage() {
       engineRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadState.done]);
 
-  // Mobile touch controls
+  // === Touch controls ===
   useEffect(() => {
+    if (!loadState.done) return;
     const canvas = canvasRef.current;
-    if (!canvas) return;
     const engine = engineRef.current;
-    if (!engine) return;
+    if (!canvas || !engine) return;
 
     let touchX: number | null = null;
     let touchActive = false;
-
     const onStart = (e: TouchEvent) => {
       e.preventDefault();
       touchActive = true;
@@ -112,11 +141,7 @@ export default function PlayPage() {
       const x = e.touches[0].clientX;
       if (touchX !== null) {
         const dx = x - touchX;
-        engine.setInput({
-          left: dx < -5,
-          right: dx > 5,
-          fire: true,
-        });
+        engine.setInput({ left: dx < -5, right: dx > 5, fire: true });
       }
     };
     const onEnd = () => {
@@ -132,14 +157,16 @@ export default function PlayPage() {
       canvas.removeEventListener('touchmove', onMove);
       canvas.removeEventListener('touchend', onEnd);
     };
-  }, []);
+  }, [loadState.done]);
 
-  const startGame = () => {
-    if (engineRef.current) {
+  const startGame = useCallback(() => {
+    if (engineRef.current && loadState.done) {
       engineRef.current.start();
       setRunning(true);
     }
-  };
+  }, [loadState.done]);
+
+  const loadPct = loadState.total > 0 ? Math.round((loadState.loaded / loadState.total) * 100) : 0;
 
   return (
     <>
@@ -147,9 +174,13 @@ export default function PlayPage() {
         <div className={styles.marqueeLeft}>
           <Link href="/">★ PIXELARCADE.ART</Link>
         </div>
-        <div className={styles.marqueeCenter}>SWARM · v0.1</div>
+        <div className={styles.marqueeCenter}>SWARM · v0.2</div>
         <div className={styles.marqueeRight}>
-          {phase === 'playing' || phase === 'wave-intro' || phase === 'wave-clear' ? 'BATTLE' : 'STANDBY'}
+          {phase === 'playing' || phase === 'wave-intro' || phase === 'wave-clear'
+            ? 'BATTLE'
+            : phase === 'victory'
+            ? '★ VICTORY ★'
+            : 'STANDBY'}
         </div>
       </header>
 
@@ -162,13 +193,11 @@ export default function PlayPage() {
           </div>
           <div className={styles.hudCell}>
             <div className={styles.hudLabel}>WAVE</div>
-            <div className={`${styles.hudValue} ${styles.cyan}`}>{stats.wave}</div>
+            <div className={`${styles.hudValue} ${styles.cyan}`}>{stats.wave}/30</div>
           </div>
           <div className={styles.hudCell}>
             <div className={styles.hudLabel}>LIVES</div>
-            <div className={`${styles.hudValue} ${styles.pink}`}>
-              {'★'.repeat(Math.max(0, stats.lives))}
-            </div>
+            <div className={`${styles.hudValue} ${styles.pink}`}>{'★'.repeat(Math.max(0, stats.lives))}</div>
           </div>
           <div className={styles.hudCell}>
             <div className={styles.hudLabel}>STREAK</div>
@@ -178,7 +207,21 @@ export default function PlayPage() {
           </div>
         </div>
 
-        {/* CRT Cabinet around playfield */}
+        {/* Active power-ups bar */}
+        {stats.activeBoosts.length > 0 && (
+          <div className={styles.boostsBar}>
+            {stats.activeBoosts.map((b) => (
+              <div key={b.type} className={styles.boostBadge}>
+                <span className={styles.boostType}>{b.type.toUpperCase()}</span>
+                {b.remaining !== Infinity && (
+                  <span className={styles.boostTime}>{b.remaining.toFixed(1)}s</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* CRT Cabinet */}
         <div className={styles.cabinet}>
           <div className={styles.cabinetInner}>
             <canvas
@@ -188,19 +231,41 @@ export default function PlayPage() {
               height={PLAYFIELD_H * 2}
             />
 
-            {/* Overlay screens */}
+            {/* Pre-game / loading overlay */}
             {!running && (
               <div className={styles.overlay}>
-                <div className={styles.title}>SWARM</div>
-                <div className={styles.subtitle}>★ PIXELARCADE · A NEW CHAPTER ★</div>
-                <div className={styles.instructions}>
-                  <p>← → MOVE  ·  SPACE FIRE</p>
-                  <p>(or touch + drag)</p>
-                </div>
-                <button className={styles.startBtn} onClick={startGame}>
-                  ▶ INSERT COIN
-                </button>
-                <div className={styles.footnote}>v0.1 prototype · 3 waves</div>
+                {!loadState.done ? (
+                  <>
+                    <div className={styles.title}>SWARM</div>
+                    <div className={styles.subtitle}>★ LOADING ASSETS ★</div>
+                    <div className={styles.loadBar}>
+                      <div className={styles.loadFill} style={{ width: `${loadPct}%` }} />
+                    </div>
+                    <div className={styles.loadStatus}>
+                      {loadState.loaded}/{loadState.total} · {loadState.current.toUpperCase()}
+                    </div>
+                    <div className={styles.footnote}>FETCHING MFERS FROM IPFS…</div>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles.title}>SWARM</div>
+                    <div className={styles.subtitle}>★ PIXELARCADE · A NEW CHAPTER ★</div>
+                    <div className={styles.instructions}>
+                      <p>← → MOVE  ·  SPACE FIRE</p>
+                      <p>SURVIVE 30 WAVES · DEFEAT 6 BOSSES</p>
+                      <p>COLLECT XNOUN POWER-UPS</p>
+                    </div>
+                    {loadState.failed.length > 0 && (
+                      <div className={styles.warn}>
+                        ! {loadState.failed.length} ASSET(S) USING PLACEHOLDER
+                      </div>
+                    )}
+                    <button className={styles.startBtn} onClick={startGame}>
+                      ▶ INSERT COIN
+                    </button>
+                    <div className={styles.footnote}>v0.2 prototype · vanilla mode</div>
+                  </>
+                )}
               </div>
             )}
 
@@ -209,12 +274,25 @@ export default function PlayPage() {
                 <div className={styles.gameOverTitle}>GAME OVER</div>
                 <div className={styles.finalScore}>{String(stats.score).padStart(6, '0')}</div>
                 <div className={styles.subtitle}>
-                  WAVE {stats.wave} · {stats.lives <= 0 ? 'SHIP LOST' : '3 WAVES CLEARED'}
+                  WAVE {stats.wave}/30 · SHIP LOST
                 </div>
                 <button className={styles.startBtn} onClick={startGame}>
                   ▶ PLAY AGAIN
                 </button>
                 <div className={styles.footnote}>(R or ENTER also restarts)</div>
+              </div>
+            )}
+
+            {running && phase === 'victory' && (
+              <div className={styles.overlay}>
+                <div className={styles.victoryTitle}>★ VICTORY ★</div>
+                <div className={styles.finalScore}>{String(stats.score).padStart(6, '0')}</div>
+                <div className={styles.subtitle}>
+                  30 WAVES CLEARED · MAX PAIN DEFEATED
+                </div>
+                <button className={styles.startBtn} onClick={startGame}>
+                  ▶ PLAY AGAIN
+                </button>
               </div>
             )}
           </div>

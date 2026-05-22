@@ -294,6 +294,100 @@
 }
 
 /* ============================================================
+   Active boosts bar (between HUD and cabinet)
+   ============================================================ */
+.boostsBar {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(10, 4, 30, 0.5);
+  border: 1px solid var(--neon-cyan);
+  box-shadow: 0 0 8px rgba(0, 255, 240, 0.3);
+}
+.boostBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(0, 255, 240, 0.1);
+  border: 1px solid var(--neon-cyan);
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 6px var(--neon-cyan);
+}
+.boostType {
+  font-weight: bold;
+}
+.boostTime {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 4px var(--neon-yellow);
+  font-size: 8px;
+}
+
+/* ============================================================
+   Loading bar (pre-game)
+   ============================================================ */
+.loadBar {
+  width: 80%;
+  max-width: 280px;
+  height: 14px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--neon-cyan);
+  box-shadow: 0 0 10px var(--neon-cyan);
+  overflow: hidden;
+  margin: 12px 0 6px;
+}
+.loadFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--face-pink), var(--neon-yellow));
+  box-shadow: 0 0 12px var(--neon-yellow);
+  transition: width 0.18s ease-out;
+}
+.loadStatus {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 4px var(--neon-cyan);
+  min-height: 12px;
+}
+
+.warn {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: var(--face-pink);
+  text-shadow: 0 0 6px var(--face-pink);
+  margin: 6px 0;
+  padding: 4px 12px;
+  border: 1px solid var(--face-pink);
+}
+
+/* ============================================================
+   Victory screen (separate from game-over)
+   ============================================================ */
+.victoryTitle {
+  font-family: var(--font-display);
+  font-size: 48px;
+  color: var(--neon-yellow);
+  text-shadow:
+    0 0 20px var(--neon-yellow),
+    3px 3px 0 var(--face-pink);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  margin: 0;
+  animation: victoryPulse 1.2s ease-in-out infinite;
+}
+@keyframes victoryPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.05); }
+}
+
+/* ============================================================
    Controls hint below cabinet
    ============================================================ */
 .controls {
