@@ -1,0 +1,342 @@
+/* ============================================================
+   /play — PixelArcade: SWARM
+   CRT cabinet chrome wrapping a black canvas playfield.
+   ============================================================ */
+
+.marquee {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  align-items: center;
+  padding: 12px 24px;
+  background: linear-gradient(to bottom, rgba(10,4,30,0.95), rgba(10,4,30,0.85));
+  border-bottom: 2px solid var(--face-pink);
+  box-shadow: 0 0 24px var(--face-pink);
+  font-family: var(--font-pixel);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+.marqueeLeft a {
+  color: var(--neon-yellow);
+  text-decoration: none;
+  text-shadow: 0 0 6px var(--neon-yellow);
+}
+.marqueeCenter {
+  text-align: center;
+  color: var(--face-pink);
+  text-shadow: 0 0 8px var(--face-pink);
+  font-weight: bold;
+}
+.marqueeRight {
+  text-align: right;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 6px var(--neon-cyan);
+  font-size: 11px;
+}
+
+.main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+/* ============================================================
+   HUD strip above the cabinet
+   ============================================================ */
+.hud {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.5fr 1.5fr;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(10, 4, 30, 0.7);
+  border: 2px solid var(--face-pink);
+  box-shadow: 0 0 14px rgba(203, 2, 178, 0.4);
+}
+
+.hudCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.hudLabel {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--pixel-dim);
+  letter-spacing: 0.15em;
+}
+
+.hudValue {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--neon-yellow);
+  text-shadow: 0 0 8px var(--neon-yellow);
+  letter-spacing: 0.05em;
+  min-height: 22px;
+}
+
+.cyan { color: var(--neon-cyan); text-shadow: 0 0 8px var(--neon-cyan); }
+.pink { color: var(--face-pink); text-shadow: 0 0 8px var(--face-pink); }
+.yellow { color: var(--neon-yellow); text-shadow: 0 0 10px var(--neon-yellow); }
+
+/* ============================================================
+   The cabinet — CRT chrome around the canvas
+   ============================================================ */
+.cabinet {
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 3 / 4;
+  background:
+    radial-gradient(ellipse at center, #1a0830 0%, #050214 70%);
+  border: 4px solid var(--face-pink);
+  border-radius: 24px 24px 8px 8px;
+  padding: 16px;
+  box-shadow:
+    0 0 32px rgba(203, 2, 178, 0.45),
+    inset 0 0 24px rgba(0, 0, 0, 0.6);
+  position: relative;
+}
+
+/* Top-of-cabinet "marquee" — the arcade machine header */
+.cabinet::before {
+  content: '★ SWARM ★';
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--face-pink);
+  color: #0a041e;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  padding: 4px 14px;
+  border-radius: 6px;
+  box-shadow: 0 0 12px var(--face-pink);
+}
+
+/* Coin slot lip at bottom */
+.cabinet::after {
+  content: '◼ ◼ ◼  COIN SLOT  ◼ ◼ ◼';
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: var(--pixel-dim);
+  background: #0a041e;
+  padding: 4px 10px;
+  border: 1px solid var(--pixel-dim);
+}
+
+.cabinetInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 20px rgba(0, 0, 0, 0.9),
+    inset 0 0 4px rgba(255, 255, 255, 0.05);
+}
+
+/* Subtle scanline overlay over the canvas */
+.cabinetInner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    rgba(0, 0, 0, 0.18) 2px,
+    rgba(0, 0, 0, 0.18) 3px
+  );
+  z-index: 3;
+}
+
+/* Slight CRT curvature vignette */
+.cabinetInner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 50%,
+    rgba(0, 0, 0, 0.5) 100%
+  );
+  z-index: 2;
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 1;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* ============================================================
+   Overlay screens (start, game over)
+   ============================================================ */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  background: rgba(10, 4, 30, 0.88);
+  backdrop-filter: blur(2px);
+  text-align: center;
+  animation: overlayIn 0.25s ease-out;
+}
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 56px;
+  color: var(--face-pink);
+  text-shadow:
+    0 0 18px var(--face-pink),
+    3px 3px 0 var(--neon-cyan);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  margin: 0;
+}
+
+.gameOverTitle {
+  font-family: var(--font-display);
+  font-size: 42px;
+  color: var(--face-pink);
+  text-shadow:
+    0 0 18px var(--face-pink),
+    3px 3px 0 var(--neon-cyan);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  margin: 0;
+}
+
+.finalScore {
+  font-family: var(--font-display);
+  font-size: 36px;
+  color: var(--neon-yellow);
+  text-shadow: 0 0 12px var(--neon-yellow);
+  letter-spacing: 0.08em;
+}
+
+.subtitle {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 6px var(--neon-cyan);
+  letter-spacing: 0.15em;
+}
+
+.instructions {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--pixel-dim);
+  letter-spacing: 0.1em;
+  line-height: 1.8;
+  margin: 8px 0;
+}
+.instructions p { margin: 0; }
+
+.startBtn {
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  color: var(--neon-yellow);
+  background: transparent;
+  border: 2px solid var(--neon-yellow);
+  padding: 14px 24px;
+  cursor: pointer;
+  letter-spacing: 0.15em;
+  text-shadow: 0 0 6px var(--neon-yellow);
+  box-shadow: 0 0 12px var(--neon-yellow);
+  transition: all 0.12s;
+  margin-top: 8px;
+}
+.startBtn:hover {
+  background: var(--neon-yellow);
+  color: #000;
+  text-shadow: none;
+  box-shadow: 0 0 24px var(--neon-yellow);
+  transform: scale(1.04);
+}
+
+.footnote {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: var(--pixel-dim);
+  letter-spacing: 0.15em;
+  margin-top: 4px;
+}
+
+/* ============================================================
+   Controls hint below cabinet
+   ============================================================ */
+.controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--pixel-dim);
+  letter-spacing: 0.1em;
+  margin-top: 8px;
+}
+
+/* ============================================================
+   Mobile / smaller screens
+   ============================================================ */
+@media (max-width: 600px) {
+  .main { padding: 16px 8px 40px; }
+  .marquee { grid-template-columns: 1fr 1fr; font-size: 11px; }
+  .marqueeCenter { display: none; }
+  .hud {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
+  .hudValue { font-size: 18px; }
+  .cabinet { border-radius: 16px 16px 8px 8px; padding: 10px; }
+  .cabinet::before { font-size: 9px; padding: 3px 12px; }
+  .cabinet::after { display: none; }
+  .title { font-size: 42px; }
+  .gameOverTitle { font-size: 32px; }
+  .finalScore { font-size: 28px; }
+  .controls { font-size: 8px; }
+}
+
+/* Touch-friendly: on touch devices, controls hint changes */
+@media (hover: none) {
+  .controls::before {
+    content: 'DRAG TO STEER · TAP AND HOLD TO FIRE';
+    font-family: var(--font-pixel);
+    color: var(--neon-cyan);
+    text-shadow: 0 0 6px var(--neon-cyan);
+  }
+  .controls > * { display: none; }
+}
