@@ -69,6 +69,8 @@ const ENEMY_STATS = {
   runner: { hp: 1, score: 100, dive_score_bonus: 2.0, speed_mult: 1.5, drop_chance: 0.08, can_fire: false },
   sniper: { hp: 2, score: 200, dive_score_bonus: 1.5, speed_mult: 0.8, drop_chance: 0.20, can_fire: true },
   bomber: { hp: 2, score: 300, dive_score_bonus: 1.5, speed_mult: 1.1, drop_chance: 0.30, can_fire: true },
+  // Titan (Geodetic) — rare, fast double-shooter, high HP
+  titan:  { hp: 5, score: 800, dive_score_bonus: 1.5, speed_mult: 1.3, drop_chance: 0.55, can_fire: true },
 } as const;
 
 // Streak thresholds
@@ -80,8 +82,6 @@ const STREAK_THRESHOLDS = [
 ];
 
 const POWERUP_SCORE = 500;                // noun-multiplier instant bonus
-
-const MAX_WAVES = 30;
 
 // ============================================================
 // Types
@@ -99,7 +99,7 @@ export interface GameStats {
 
 export type GamePhase =
   | 'pre-game' | 'wave-intro' | 'playing' | 'boss-incoming'
-  | 'wave-clear' | 'victory' | 'game-over';
+  | 'wave-clear' | 'victory' | 'mintface-incoming' | 'true-victory' | 'game-over';
 
 export interface GameCallbacks {
   onStatsChange?: (stats: GameStats) => void;
@@ -122,20 +122,21 @@ const POWERUP_SPRITE: Record<PowerUpType, SpriteKey> = {
   invincible:  'noun-invincible',
 };
 
-type EnemyTier = 'grunt' | 'runner' | 'sniper' | 'bomber';
+type EnemyTier = 'grunt' | 'runner' | 'sniper' | 'bomber' | 'titan';
 
 const ENEMY_SPRITE: Record<EnemyTier, SpriteKey> = {
   grunt:  'mfer-grunt',
   runner: 'mfer-runner',
   sniper: 'mfer-sniper',
   bomber: 'mfer-bomber',
+  titan:  'mfer-titan',
 };
 
 interface BossDescriptor {
   name: string;
   sprite: SpriteKey;
   hp: number;
-  pattern: 'spiral' | 'sweep' | 'beam' | 'rain' | 'rage' | 'mixed';
+  pattern: 'spiral' | 'sweep' | 'beam' | 'rain' | 'rage' | 'mixed' | 'transcend';
   /** Color used for boss HP bar */
   color: string;
   /** Phrases boss occasionally shouts in a speech bubble. Random pick each time. */
@@ -199,7 +200,24 @@ const BOSSES: Record<number, BossDescriptor> = {
       'THERE IS NO ESCAPE',
     ],
   },
+  // Secret final boss — only unlocked by clearing wave 30
+  31: {
+    name: 'MINTFACE', sprite: 'boss-mintface', hp: 300, pattern: 'transcend', color: '#ffe000',
+    taunts: [
+      'I AM THE ARTIST',
+      'THIS IS MY ARCADE',
+      'YOU MADE IT THIS FAR',
+      'NOW PROVE IT',
+      '64 PAINTINGS. ONE CHANCE.',
+      'PRESS START TO TRANSCEND',
+      'THE LINE NEW ZEALAND',
+    ],
+  },
 };
+
+/** The secret final boss wave — only reachable by beating wave 30 */
+const SECRET_FINAL_WAVE = 31;
+const FINAL_WAVE = 30;
 
 // ============================================================
 // Entity interfaces
@@ -349,8 +367,8 @@ type EnemyState = 'formation-entering' | 'formation' | 'diving';
 class Enemy implements Entity {
   x: number;
   y: number;
-  w = 28;
-  h = 28;
+  w: number;
+  h: number;
   alive = true;
   tier: EnemyTier;
   hp: number;
@@ -384,6 +402,14 @@ class Enemy implements Entity {
     this.y = entryStartY;
     this.hp = ENEMY_STATS[tier].hp;
     this.sprite = sprite;
+    // Titan is visually larger to feel like a threat
+    if (tier === 'titan') {
+      this.w = 40;
+      this.h = 40;
+    } else {
+      this.w = 28;
+      this.h = 28;
+    }
   }
 
   update(dt: number, t: number, playerX: number, fireCallback: (bullets: Bullet[]) => void) {
@@ -422,8 +448,17 @@ class Enemy implements Entity {
               new Bullet(this.x, this.y + 14, false,   0, ENEMY_BULLET_SPEED * 0.8, '#ff8800'),
               new Bullet(this.x, this.y + 14, false,  60, ENEMY_BULLET_SPEED * 0.8, '#ff8800'),
             ]);
+          } else if (this.tier === 'titan') {
+            // Twin parallel shots — fast, white-on-black mech aesthetic
+            fireCallback([
+              new Bullet(this.x - 10, this.y + 18, false, 0, ENEMY_BULLET_SPEED * 1.2, '#ffffff'),
+              new Bullet(this.x + 10, this.y + 18, false, 0, ENEMY_BULLET_SPEED * 1.2, '#ffffff'),
+            ]);
           }
-          this.fireCooldown = 2.5 + Math.random() * 3;
+          // Titan fires faster than other tiers
+          const cooldownBase = this.tier === 'titan' ? 1.2 : 2.5;
+          const cooldownRange = this.tier === 'titan' ? 1.5 : 3;
+          this.fireCooldown = cooldownBase + Math.random() * cooldownRange;
         }
       }
     } else if (this.state === 'diving') {
@@ -639,6 +674,39 @@ class Boss implements Entity {
           this.fireCooldown = 0.4;
           break;
         }
+        case 'transcend': {
+          // MintFace: cycles through 4 phases — the artist's signature
+          // Each phase = different "brushstroke" pattern, yellow-themed
+          const phase = Math.floor(this.moveT * 0.4) % 4;
+          if (phase === 0) {
+            // "Halo ring" — 12-spoke spiral expanding outward
+            for (let i = 0; i < 12; i++) {
+              const a = this.spiralAngle + (i * Math.PI * 2 / 12);
+              bullets.push(new Bullet(this.x, this.y, false, Math.cos(a) * 200, Math.sin(a) * 200, '#ffe000'));
+            }
+            this.spiralAngle += 0.2;
+          } else if (phase === 1) {
+            // "Brushstroke" — fast horizontal sweep, painterly
+            for (let i = -5; i <= 5; i++) {
+              bullets.push(new Bullet(this.x + i * 16, this.y + 30, false, i * 25, ENEMY_BULLET_SPEED * 1.3, '#ff5533'));
+            }
+          } else if (phase === 2) {
+            // "Pink eye" — aimed burst at player, pink (his eye color)
+            const dx = playerX - this.x;
+            const dy = (PLAYFIELD_H - 60) - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            for (let i = -3; i <= 3; i++) {
+              bullets.push(new Bullet(this.x, this.y + 30, false, (dx / dist) * 380 + i * 35, (dy / dist) * 380, '#ff66cc'));
+            }
+          } else {
+            // "Blue eye" — straight column rain
+            for (let i = -3; i <= 3; i++) {
+              bullets.push(new Bullet(this.x + i * 22, this.y + 30, false, 0, ENEMY_BULLET_SPEED * 1.1, '#3a99ff'));
+            }
+          }
+          this.fireCooldown = 0.35;
+          break;
+        }
       }
       fireCallback(bullets);
     }
@@ -706,6 +774,27 @@ class Boss implements Entity {
     const lowHp = this.hp / this.maxHp < 0.3;
     const scale = lowHp ? 1 + Math.sin(this.moveT * 8) * 0.05 : 1;
     ctx.scale(scale, scale);
+
+    // MintFace gets a rotating yellow halo aura behind him — the signature
+    if (this.name === 'MINTFACE') {
+      ctx.save();
+      ctx.rotate(this.moveT * 0.6);
+      ctx.strokeStyle = '#ffe000';
+      ctx.shadowColor = '#ffe000';
+      ctx.shadowBlur = 18;
+      ctx.lineWidth = 4;
+      // Three concentric arcs offset, giving a brushstroke vibe
+      for (let i = 0; i < 3; i++) {
+        ctx.globalAlpha = 0.7 - i * 0.15;
+        ctx.beginPath();
+        const r = this.w * (0.7 + i * 0.12);
+        const offset = i * 0.3;
+        ctx.arc(0, 0, r, offset, offset + Math.PI * 1.7);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     ctx.shadowColor = this.color;
     ctx.shadowBlur = lowHp ? 24 : 12;
     ctx.drawImage(this.sprite, -this.w / 2, -this.h / 2, this.w, this.h);
@@ -806,6 +895,72 @@ class PowerUpDrop implements Entity {
 }
 
 // ============================================================
+// Collectible — bonus score drops, no gameplay effect
+// ============================================================
+
+type CollectibleType = 'cherry' | 'glasses-pink' | 'glasses-purple' | 'glasses-zeros';
+
+const COLLECTIBLE_SPRITE: Record<CollectibleType, SpriteKey> = {
+  'cherry':         'collectible-cherry',
+  'glasses-pink':   'collectible-glasses-pink',
+  'glasses-purple': 'collectible-glasses-purple',
+  'glasses-zeros':  'collectible-glasses-zeros',
+};
+
+const COLLECTIBLE_SCORE: Record<CollectibleType, number> = {
+  'cherry':         1000,  // PixelArcade brand mark, big bonus
+  'glasses-pink':   500,
+  'glasses-purple': 500,
+  'glasses-zeros':  750,   // the zeros (000) variant is rarer + bigger
+};
+
+class CollectibleDrop implements Entity {
+  x: number;
+  y: number;
+  w = 28;
+  h = 28;
+  alive = true;
+  type: CollectibleType;
+  sprite: HTMLImageElement;
+  spawnT = 0;
+
+  constructor(x: number, y: number, type: CollectibleType, sprite: HTMLImageElement) {
+    this.x = x;
+    this.y = y;
+    this.type = type;
+    this.sprite = sprite;
+  }
+
+  update(dt: number) {
+    this.y += 70 * dt;   // falls a bit slower than power-ups
+    this.spawnT += dt;
+    if (this.y > PLAYFIELD_H + 30) this.alive = false;
+  }
+
+  render(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    const bob = Math.sin(this.spawnT * 3.5) * 3;
+    const spin = Math.sin(this.spawnT * 2) * 0.1;
+    ctx.translate(0, bob);
+    ctx.rotate(spin);
+    // Glow themed by type
+    const glowColor = this.type === 'cherry' ? '#ff3344'
+      : this.type === 'glasses-pink' ? '#ff66cc'
+      : this.type === 'glasses-purple' ? '#9933ff'
+      : '#ffffff';
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = 12;
+    ctx.drawImage(this.sprite, -this.w / 2, -this.h / 2, this.w, this.h);
+    ctx.restore();
+  }
+
+  getScore(): number {
+    return COLLECTIBLE_SCORE[this.type];
+  }
+}
+
+// ============================================================
 // Particles
 // ============================================================
 
@@ -893,6 +1048,7 @@ function buildWaveComposition(wave: number): { tier: EnemyTier; count: number }[
       { tier: 'runner', count: 6 },
       { tier: 'sniper', count: 4 },
       { tier: 'bomber', count: Math.floor((wave - 14) * 1.2) },
+      { tier: 'titan', count: 1 },   // first titan appears wave 16-19
     ];
   }
   if (wave <= 24) {
@@ -901,6 +1057,7 @@ function buildWaveComposition(wave: number): { tier: EnemyTier; count: number }[
       { tier: 'runner', count: 7 },
       { tier: 'sniper', count: 5 },
       { tier: 'bomber', count: 3 + Math.floor((wave - 19) * 0.6) },
+      { tier: 'titan', count: 1 + Math.floor((wave - 19) * 0.3) },  // 1–2 titans
     ];
   }
   // 26-29: max
@@ -909,6 +1066,7 @@ function buildWaveComposition(wave: number): { tier: EnemyTier; count: number }[
     { tier: 'runner', count: 8 },
     { tier: 'sniper', count: 6 },
     { tier: 'bomber', count: 5 },
+    { tier: 'titan', count: 2 },  // always 2 titans late game
   ];
 }
 
@@ -935,6 +1093,7 @@ export class GameEngine {
   private enemies: Enemy[] = [];
   private boss: Boss | null = null;
   private powerUps: PowerUpDrop[] = [];
+  private collectibles: CollectibleDrop[] = [];
   private particles: Particle[] = [];
 
   // Loop
@@ -989,6 +1148,7 @@ export class GameEngine {
     this.bullets = [];
     this.enemies = [];
     this.powerUps = [];
+    this.collectibles = [];
     this.particles = [];
     this.boss = null;
     this.elapsed = 0;
@@ -1034,6 +1194,8 @@ export class GameEngine {
     this.particles = this.particles.filter((p) => p.alive);
     for (const u of this.powerUps) u.update(dt);
     this.powerUps = this.powerUps.filter((u) => u.alive);
+    for (const c of this.collectibles) c.update(dt);
+    this.collectibles = this.collectibles.filter((c) => c.alive);
 
     if (this.phase === 'wave-intro') {
       if (this.phaseTime > 1.5) {
@@ -1083,6 +1245,23 @@ export class GameEngine {
         }
       }
 
+      // Collectible pickups (pure score bonus)
+      for (const c of this.collectibles) {
+        if (!c.alive) continue;
+        if (rectsOverlap(this.player, c)) {
+          c.alive = false;
+          const bonus = c.getScore() * this.currentMultiplier();
+          this.score += bonus;
+          // Themed pop colors
+          const color = c.type === 'cherry' ? '#ff3344'
+            : c.type === 'glasses-zeros' ? '#ffffff'
+            : c.type === 'glasses-purple' ? '#9933ff'
+            : '#ff66cc';
+          this.explode(c.x, c.y, color, false);
+          this.emitStats();
+        }
+      }
+
       this.checkCollisions();
 
       // Wave clear
@@ -1090,8 +1269,14 @@ export class GameEngine {
       const bossAlive = this.boss?.alive ?? false;
       if (!enemiesAlive && !bossAlive) {
         this.score += 100 * this.wave;
-        if (this.wave === MAX_WAVES) {
-          this.phase = 'victory';
+        if (this.wave === SECRET_FINAL_WAVE) {
+          // Beat MintFace — true ending
+          this.phase = 'true-victory';
+          this.phaseTime = 0;
+          this.emitPhase();
+        } else if (this.wave === FINAL_WAVE) {
+          // Beat Max Pain — secret transition into MintFace fight
+          this.phase = 'mintface-incoming';
           this.phaseTime = 0;
           this.emitPhase();
         } else {
@@ -1115,7 +1300,19 @@ export class GameEngine {
       return;
     }
 
-    if (this.phase === 'victory' || this.phase === 'game-over') {
+    if (this.phase === 'mintface-incoming') {
+      // 4-second dramatic pause before MintFace materializes
+      if (this.phaseTime > 4.0) {
+        this.wave = SECRET_FINAL_WAVE;
+        this.phase = 'wave-intro';
+        this.phaseTime = 0;
+        this.emitStats();
+        this.emitPhase();
+      }
+      return;
+    }
+
+    if (this.phase === 'victory' || this.phase === 'true-victory' || this.phase === 'game-over') {
       // particles continue to fade
       return;
     }
@@ -1147,8 +1344,8 @@ export class GameEngine {
       // Place stronger tiers first (top rows) so they're at back
       for (let i = 0; i < c.count; i++) tierList.push(c.tier);
     }
-    // Sort: snipers/bombers to the top rows
-    const priority: Record<EnemyTier, number> = { bomber: 0, sniper: 1, runner: 2, grunt: 3 };
+    // Sort: snipers/bombers/titans to the top rows
+    const priority: Record<EnemyTier, number> = { titan: 0, bomber: 1, sniper: 2, runner: 3, grunt: 4 };
     tierList.sort((a, b) => priority[a] - priority[b]);
 
     let index = 0;
@@ -1189,9 +1386,16 @@ export class GameEngine {
             this.score += score * this.currentMultiplier();
             this.streak += 1;
             this.explode(e.x, e.y, '#ff1ad9', false);
-            // Drop chance
+            // Drop chance — power-up
             if (Math.random() < e.getDropChance()) {
               this.spawnRandomPowerUp(e.x, e.y);
+            }
+            // Drop chance — collectible (separate, lower rate, no gameplay effect)
+            // Titans drop more often as a reward for being hard to kill
+            const collectibleChance = e.tier === 'titan' ? 0.4 : e.getDropChance() * 0.4;
+            if (Math.random() < collectibleChance) {
+              // Offset slightly so it doesn't overlap the power-up
+              this.spawnRandomCollectible(e.x + (Math.random() - 0.5) * 20, e.y);
             }
             this.emitStats();
           }
@@ -1209,8 +1413,9 @@ export class GameEngine {
           this.streak += 5;
           this.explode(this.boss.x, this.boss.y, this.boss.color, true);
           this.explode(this.boss.x, this.boss.y, '#ffe000', true);
-          // Bosses guarantee a power-up drop
+          // Bosses guarantee a power-up AND a collectible drop
           this.spawnRandomPowerUp(this.boss.x, this.boss.y + 30);
+          this.spawnRandomCollectible(this.boss.x + 40, this.boss.y + 30);
           this.boss = null;
           this.emitStats();
         }
@@ -1266,6 +1471,24 @@ export class GameEngine {
       if (r <= 0) { chosen = w.type; break; }
     }
     this.powerUps.push(new PowerUpDrop(x, y, chosen, this.spriteOf(POWERUP_SPRITE[chosen])));
+  }
+
+  private spawnRandomCollectible(x: number, y: number) {
+    // Weighted: cherries are rarest + most valuable
+    const weights: { type: CollectibleType; weight: number }[] = [
+      { type: 'glasses-pink',   weight: 35 },
+      { type: 'glasses-purple', weight: 35 },
+      { type: 'glasses-zeros',  weight: 20 },
+      { type: 'cherry',         weight: 10 },
+    ];
+    const total = weights.reduce((s, w) => s + w.weight, 0);
+    let r = Math.random() * total;
+    let chosen: CollectibleType = 'glasses-pink';
+    for (const w of weights) {
+      r -= w.weight;
+      if (r <= 0) { chosen = w.type; break; }
+    }
+    this.collectibles.push(new CollectibleDrop(x, y, chosen, this.spriteOf(COLLECTIBLE_SPRITE[chosen])));
   }
 
   private applyPowerUp(type: PowerUpType) {
@@ -1341,10 +1564,14 @@ export class GameEngine {
     ctx.scale(scale, scale);
 
     // Background star field
+    // Chapter background (dim, behind starfield)
+    this.renderChapterBackground(ctx);
+
     this.renderStars(ctx);
 
     // Entities (order matters for z)
     for (const u of this.powerUps) u.render(ctx);
+    for (const c of this.collectibles) c.render(ctx);
     for (const e of this.enemies) if (e.alive) e.render(ctx);
     if (this.boss?.alive) this.boss.render(ctx);
     for (const b of this.bullets) b.render(ctx);
@@ -1364,12 +1591,76 @@ export class GameEngine {
       }
     } else if (this.phase === 'wave-clear') {
       this.renderCenterText(ctx, `WAVE ${this.wave} CLEAR`, `+${100 * this.wave}`, '#00ffd0');
+    } else if (this.phase === 'mintface-incoming') {
+      // Dramatic wait — text builds over the 4 seconds
+      const t = this.phaseTime;
+      if (t < 1.0) {
+        this.renderCenterText(ctx, 'WAIT…', '', '#ffe000');
+      } else if (t < 2.5) {
+        this.renderCenterText(ctx, 'SOMETHING ELSE', 'IS COMING', '#ffe000');
+      } else {
+        // Pulse the final message
+        const pulse = Math.floor(t * 3) % 2 === 0;
+        this.renderCenterText(ctx, '★ MINTFACE ★', pulse ? 'THE ARTIST APPROACHES' : '', '#ffe000');
+      }
     } else if (this.phase === 'game-over') {
       this.renderCenterText(ctx, 'GAME OVER', `SCORE ${this.score}`, '#ff1ad9');
     } else if (this.phase === 'victory') {
       this.renderCenterText(ctx, '★ VICTORY ★', `30 WAVES CLEARED · ${this.score}`, '#ffe000');
+    } else if (this.phase === 'true-victory') {
+      this.renderCenterText(ctx, '★ TRUE ENDING ★', `MINTFACE DEFEATED · ${this.score}`, '#ffe000');
     }
 
+    ctx.restore();
+  }
+
+  /**
+   * Determines which chapter (1-6 / 7) the current wave belongs to and renders
+   * the chapter-themed Noun head sprite as a dim, slowly-drifting background
+   * behind the starfield.
+   *
+   * Chapter mapping:
+   *   waves 1-4   → cherry (PixelArcade brand intro)
+   *   waves 5-9   → cd (Damager era, system glitch)
+   *   waves 10-14 → blackhole (6529 Punk era, decentralized void)
+   *   waves 15-19 → pyramid (Rage era, ancient geometry)
+   *   waves 20-24 → ufo (Special Op era, invasion)
+   *   waves 25-30 → robot (Beast Mode / Max Pain, cold tech)
+   *   wave 31     → blackhole again, but with golden tint (MintFace)
+   */
+  private renderChapterBackground(ctx: CanvasRenderingContext2D) {
+    let key: SpriteKey;
+    let tintGold = false;
+    if (this.wave === 0) return;        // pre-game
+    if (this.wave === SECRET_FINAL_WAVE) {
+      key = 'bg-ch3';   // reuse blackhole, gold tint for MintFace
+      tintGold = true;
+    } else if (this.wave <= 4) key = 'bg-ch1';
+    else if (this.wave <= 9) key = 'bg-ch2';
+    else if (this.wave <= 14) key = 'bg-ch3';
+    else if (this.wave <= 19) key = 'bg-ch4';
+    else if (this.wave <= 24) key = 'bg-ch5';
+    else key = 'bg-ch6';
+
+    const img = this.assets.sprites.get(key);
+    if (!img) return;
+
+    ctx.save();
+    // Position centered, large enough to fill, with subtle drift
+    const drift = Math.sin(this.elapsed * 0.15) * 16;
+    const size = Math.min(PLAYFIELD_W, PLAYFIELD_H) * 0.95;
+    ctx.globalAlpha = 0.10;   // dim, doesn't compete with gameplay
+    if (tintGold) {
+      // MintFace chapter: warm yellow glow
+      ctx.shadowColor = '#ffe000';
+      ctx.shadowBlur = 30;
+    }
+    ctx.drawImage(
+      img,
+      (PLAYFIELD_W - size) / 2 + drift,
+      (PLAYFIELD_H - size) / 2 - 30,
+      size, size,
+    );
     ctx.restore();
   }
 

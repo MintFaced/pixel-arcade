@@ -40,6 +40,7 @@ export default function PlayPage() {
   const assetsRef = useRef<AssetBundle | null>(null);
 
   const [loadState, setLoadState] = useState<LoadState>({ loaded: 0, total: 0, current: '', done: false, failed: [] });
+  const [hasGameOverImage, setHasGameOverImage] = useState(false);
   const [stats, setStats] = useState<GameStats>({
     score: 0, lives: 3, wave: 1, streak: 0, multiplier: 1,
     activeBoosts: [], bossHp: null,
@@ -57,6 +58,8 @@ export default function PlayPage() {
       });
       if (cancelled) return;
       assetsRef.current = bundle;
+      // The game-over sprite is optional — only render the image if it loaded
+      setHasGameOverImage(bundle.sprites.has('game-over'));
       setLoadState({ loaded: bundle.sprites.size, total: bundle.sprites.size, current: '', done: true, failed: bundle.failed });
     })();
     return () => { cancelled = true; };
@@ -193,7 +196,9 @@ export default function PlayPage() {
           </div>
           <div className={styles.hudCell}>
             <div className={styles.hudLabel}>WAVE</div>
-            <div className={`${styles.hudValue} ${styles.cyan}`}>{stats.wave}/30</div>
+            <div className={`${styles.hudValue} ${styles.cyan}`}>
+              {stats.wave > 30 ? `${stats.wave}/?` : `${stats.wave}/30`}
+            </div>
           </div>
           <div className={styles.hudCell}>
             <div className={styles.hudLabel}>LIVES</div>
@@ -244,7 +249,7 @@ export default function PlayPage() {
                     <div className={styles.loadStatus}>
                       {loadState.loaded}/{loadState.total} · {loadState.current.toUpperCase()}
                     </div>
-                    <div className={styles.footnote}>FETCHING MFERS FROM IPFS…</div>
+                    <div className={styles.footnote}>LOADING SPRITES…</div>
                   </>
                 ) : (
                   <>
@@ -271,7 +276,15 @@ export default function PlayPage() {
 
             {running && phase === 'game-over' && (
               <div className={styles.overlay}>
-                <div className={styles.gameOverTitle}>GAME OVER</div>
+                {hasGameOverImage ? (
+                  <img
+                    src="/swarm/sprites/game-over.png"
+                    alt="RIP JPEG"
+                    className={styles.gameOverImage}
+                  />
+                ) : (
+                  <div className={styles.gameOverTitle}>RIP JPEG</div>
+                )}
                 <div className={styles.finalScore}>{String(stats.score).padStart(6, '0')}</div>
                 <div className={styles.subtitle}>
                   WAVE {stats.wave}/30 · SHIP LOST
@@ -288,11 +301,28 @@ export default function PlayPage() {
                 <div className={styles.victoryTitle}>★ VICTORY ★</div>
                 <div className={styles.finalScore}>{String(stats.score).padStart(6, '0')}</div>
                 <div className={styles.subtitle}>
-                  30 WAVES CLEARED · MAX PAIN DEFEATED
+                  30 WAVES CLEARED
                 </div>
                 <button className={styles.startBtn} onClick={startGame}>
                   ▶ PLAY AGAIN
                 </button>
+              </div>
+            )}
+
+            {running && phase === 'true-victory' && (
+              <div className={styles.overlay}>
+                <div className={styles.trueVictoryTitle}>★ TRUE ENDING ★</div>
+                <div className={styles.finalScore}>{String(stats.score).padStart(6, '0')}</div>
+                <div className={styles.subtitle}>
+                  MINTFACE DEFEATED · 64 PAINTINGS · 31 WAVES
+                </div>
+                <div className={styles.trueEndingMsg}>
+                  YOU HAVE TRANSCENDED THE ARCADE
+                </div>
+                <button className={styles.startBtn} onClick={startGame}>
+                  ▶ PLAY AGAIN
+                </button>
+                <div className={styles.footnote}>★ MINTFACE.ART · THE LINE NZ ★</div>
               </div>
             )}
           </div>

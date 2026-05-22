@@ -387,6 +387,48 @@
   50%      { transform: scale(1.05); }
 }
 
+/* True ending (after MintFace) — extra-special, gold + halo glow */
+.trueVictoryTitle {
+  font-family: var(--font-display);
+  font-size: 44px;
+  color: var(--neon-yellow);
+  text-shadow:
+    0 0 24px var(--neon-yellow),
+    0 0 48px var(--neon-yellow),
+    3px 3px 0 var(--face-pink);
+  letter-spacing: 0.05em;
+  line-height: 1;
+  margin: 0;
+  animation: trueVictoryGlow 2s ease-in-out infinite;
+}
+@keyframes trueVictoryGlow {
+  0%, 100% { transform: scale(1) rotate(-1deg); filter: hue-rotate(0deg); }
+  50%      { transform: scale(1.06) rotate(1deg);  filter: hue-rotate(-15deg); }
+}
+
+.trueEndingMsg {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px var(--neon-cyan);
+  letter-spacing: 0.18em;
+  margin: 4px 0;
+  animation: trueEndingFade 2.4s ease-in-out infinite;
+}
+@keyframes trueEndingFade {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+
+/* Game-over image (rip-jpeg) */
+.gameOverImage {
+  max-width: 70%;
+  max-height: 220px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 0 12px var(--face-pink));
+}
+
 /* ============================================================
    Controls hint below cabinet
    ============================================================ */

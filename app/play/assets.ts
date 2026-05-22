@@ -23,18 +23,34 @@ export type SpriteKey =
   | 'noun-slowmo'
   | 'noun-multiplier'
   | 'noun-invincible'
-  // Bosses (XCOPY-styled pieces)
+  // Bosses (XCOPY-styled pieces + MintFace final)
   | 'boss-damager'
   | 'boss-doomed-red'
   | 'boss-rage'
   | 'boss-spec-ops'
   | 'boss-beast'
   | 'boss-maxpain'
-  // Enemies (real mfers)
+  | 'boss-mintface'
+  // Enemies (real mfers + Geodetic titan)
   | 'mfer-grunt'
   | 'mfer-runner'
   | 'mfer-sniper'
-  | 'mfer-bomber';
+  | 'mfer-bomber'
+  | 'mfer-titan'
+  // Collectibles (bonus score drops)
+  | 'collectible-cherry'
+  | 'collectible-glasses-pink'
+  | 'collectible-glasses-purple'
+  | 'collectible-glasses-zeros'
+  // Chapter backgrounds (Noun heads, dimmed behind playfield)
+  | 'bg-ch1'
+  | 'bg-ch2'
+  | 'bg-ch3'
+  | 'bg-ch4'
+  | 'bg-ch5'
+  | 'bg-ch6'
+  // Game over screen
+  | 'game-over';
 
 const SPRITE_PATHS: Record<SpriteKey, string> = {
   'player-ship':       '/swarm/sprites/player-ship.png',
@@ -50,11 +66,32 @@ const SPRITE_PATHS: Record<SpriteKey, string> = {
   'boss-spec-ops':     '/swarm/sprites/boss-spec-ops.png',
   'boss-beast':        '/swarm/sprites/boss-beast.png',
   'boss-maxpain':      '/swarm/sprites/boss-maxpain.png',
+  'boss-mintface':     '/swarm/sprites/boss-mintface.png',
   'mfer-grunt':        '/swarm/sprites/mfer-grunt.png',
   'mfer-runner':       '/swarm/sprites/mfer-runner.png',
   'mfer-sniper':       '/swarm/sprites/mfer-sniper.png',
   'mfer-bomber':       '/swarm/sprites/mfer-bomber.png',
+  'mfer-titan':        '/swarm/sprites/mfer-titan.png',
+  'collectible-cherry':           '/swarm/sprites/collectible-cherry.png',
+  'collectible-glasses-pink':     '/swarm/sprites/collectible-glasses-pink.png',
+  'collectible-glasses-purple':   '/swarm/sprites/collectible-glasses-purple.png',
+  'collectible-glasses-zeros':    '/swarm/sprites/collectible-glasses-zeros.png',
+  'bg-ch1':            '/swarm/backgrounds/bg-ch1.png',
+  'bg-ch2':            '/swarm/backgrounds/bg-ch2.png',
+  'bg-ch3':            '/swarm/backgrounds/bg-ch3.png',
+  'bg-ch4':            '/swarm/backgrounds/bg-ch4.png',
+  'bg-ch5':            '/swarm/backgrounds/bg-ch5.png',
+  'bg-ch6':            '/swarm/backgrounds/bg-ch6.png',
+  'game-over':         '/swarm/sprites/game-over.png',
 };
+
+/**
+ * Sprites that are nice-to-have but the game runs fine without.
+ * If they fail to load, no warning banner shows.
+ */
+const OPTIONAL_SPRITES: Set<SpriteKey> = new Set([
+  'game-over',
+]);
 
 export interface AssetBundle {
   sprites: Map<SpriteKey, HTMLImageElement>;
@@ -109,13 +146,21 @@ export async function loadAssets(
       const img = await loadImage(path);
       sprites.set(key, img);
     } catch (err) {
-      console.warn(`[assets] Failed to load ${key}:`, err);
-      failed.push(key);
-      const color = key.startsWith('boss-') ? '#ff1ad9'
-        : key.startsWith('mfer-') ? '#ff8800'
-        : key.startsWith('noun-') ? '#00ffd0'
-        : '#ffe000';
-      sprites.set(key, placeholderImage(key.split('-').pop()!, color));
+      // Optional sprites: silently skip, don't show warning, don't add placeholder
+      if (OPTIONAL_SPRITES.has(key)) {
+        console.info(`[assets] Optional sprite ${key} not found, skipping`);
+        // Intentionally don't set a placeholder — engine checks .has() before using
+      } else {
+        console.warn(`[assets] Failed to load ${key}:`, err);
+        failed.push(key);
+        const color = key.startsWith('boss-') ? '#ff1ad9'
+          : key.startsWith('mfer-') ? '#ff8800'
+          : key.startsWith('noun-') ? '#00ffd0'
+          : key.startsWith('collectible-') ? '#ff66cc'
+          : key.startsWith('bg-') ? '#222244'
+          : '#ffe000';
+        sprites.set(key, placeholderImage(key.split('-').pop()!, color));
+      }
     } finally {
       loaded++;
       onProgress?.(loaded, total, key);
