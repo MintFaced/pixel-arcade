@@ -380,6 +380,10 @@ export const COLLECTIBLES: CharacterEntry[] = [
       { label: 'Score', value: '1000 × multiplier' },
       { label: 'Spawn weight', value: '10 (rare)' },
     ],
+    source: {
+      label: 'PixelArcade · Cherry',
+      href: 'https://opensea.io/item/ethereum/0x8f6ee5787a60959c8daf3d35fa48fd0c49bcca2a/5',
+    },
   },
   {
     id: 'glasses-pink',
