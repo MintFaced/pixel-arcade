@@ -1125,8 +1125,18 @@ export class GameEngine {
     this.input = { ...this.input, ...input };
   }
 
-  start() {
+  /**
+   * Start a new game. If startWave is provided (dev/QA mode), jump straight
+   * to that wave. Player still has 3 lives — this is for testing, not for
+   * setting high scores.
+   */
+  start(startWave?: number) {
     this.reset();
+    if (startWave && startWave > 1) {
+      this.wave = Math.min(startWave, SECRET_FINAL_WAVE);
+      this.emitStats();
+      this.emitPhase();
+    }
     this.running = true;
     this.lastTime = performance.now();
     this.loop();

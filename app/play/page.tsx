@@ -162,12 +162,30 @@ export default function PlayPage() {
     };
   }, [loadState.done]);
 
+  /**
+   * Read ?wave=N from URL for QA/dev jumping straight to a specific wave.
+   * Examples:  /play?wave=5   → start at Damager
+   *            /play?wave=10  → start at 6529 Punk
+   *            /play?wave=30  → start at Max Pain
+   *            /play?wave=31  → secret MintFace fight
+   * Memoized so re-reads are cheap; only re-evaluates on URL change.
+   */
+  const getStartWave = useCallback((): number | undefined => {
+    if (typeof window === 'undefined') return undefined;
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get('wave');
+    if (!raw) return undefined;
+    const n = parseInt(raw, 10);
+    if (Number.isNaN(n) || n < 1 || n > 31) return undefined;
+    return n;
+  }, []);
+
   const startGame = useCallback(() => {
     if (engineRef.current && loadState.done) {
-      engineRef.current.start();
+      engineRef.current.start(getStartWave());
       setRunning(true);
     }
-  }, [loadState.done]);
+  }, [loadState.done, getStartWave]);
 
   const loadPct = loadState.total > 0 ? Math.round((loadState.loaded / loadState.total) * 100) : 0;
 
@@ -177,7 +195,12 @@ export default function PlayPage() {
         <div className={styles.marqueeLeft}>
           <Link href="/">★ PIXELARCADE.ART</Link>
         </div>
-        <div className={styles.marqueeCenter}>SWARM · v0.2</div>
+        <div className={styles.marqueeCenter}>
+          SWARM · v0.2
+          {getStartWave() !== undefined && (
+            <span className={styles.devBadge}> · DEV WAVE {getStartWave()}</span>
+          )}
+        </div>
         <div className={styles.marqueeRight}>
           {phase === 'playing' || phase === 'wave-intro' || phase === 'wave-clear'
             ? 'BATTLE'
