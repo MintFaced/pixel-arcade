@@ -1,0 +1,280 @@
+/* ============================================================
+   /characters — SWARM bestiary
+   ============================================================ */
+
+.marquee {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  align-items: center;
+  padding: 12px 24px;
+  background: linear-gradient(to bottom, rgba(10,4,30,0.95), rgba(10,4,30,0.85));
+  border-bottom: 2px solid var(--face-pink);
+  box-shadow: 0 0 24px var(--face-pink);
+  font-family: var(--font-pixel);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+.marqueeLeft a {
+  color: var(--neon-yellow);
+  text-decoration: none;
+  text-shadow: 0 0 6px var(--neon-yellow);
+}
+.marqueeCenter {
+  text-align: center;
+  color: var(--face-pink);
+  text-shadow: 0 0 8px var(--face-pink);
+  font-weight: bold;
+}
+.marqueeRight {
+  text-align: right;
+}
+.playLink {
+  color: var(--neon-cyan);
+  text-decoration: none;
+  text-shadow: 0 0 6px var(--neon-cyan);
+  font-size: 12px;
+}
+.playLink:hover {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 10px var(--neon-yellow);
+}
+
+.main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 16px 80px;
+}
+
+.pageTitle {
+  font-family: var(--font-display);
+  font-size: 44px;
+  color: var(--face-pink);
+  text-shadow: 0 0 16px var(--face-pink), 3px 3px 0 var(--neon-cyan);
+  letter-spacing: 0.04em;
+  margin: 0 0 12px;
+  text-align: center;
+}
+.pageSub {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: var(--pixel-dim);
+  letter-spacing: 0.1em;
+  line-height: 1.7;
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 32px;
+}
+
+/* ============================================================
+   Tabs
+   ============================================================ */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 32px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--face-pink);
+}
+.tab {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--pixel-dim);
+  background: transparent;
+  border: 2px solid var(--pixel-dim);
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tab:hover {
+  color: var(--neon-cyan);
+  border-color: var(--neon-cyan);
+  text-shadow: 0 0 6px var(--neon-cyan);
+}
+.tabActive {
+  color: var(--neon-yellow);
+  border-color: var(--neon-yellow);
+  text-shadow: 0 0 8px var(--neon-yellow);
+  box-shadow: 0 0 12px rgba(255, 224, 0, 0.4);
+  background: rgba(255, 224, 0, 0.08);
+}
+.tabActive:hover {
+  color: var(--neon-yellow);
+  border-color: var(--neon-yellow);
+  text-shadow: 0 0 8px var(--neon-yellow);
+}
+
+/* ============================================================
+   Card grid
+   ============================================================ */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: rgba(10, 4, 30, 0.7);
+  border: 2px solid var(--face-pink);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 24px rgba(203, 2, 178, 0.5);
+}
+.cardLocked {
+  border-color: var(--pixel-dim);
+  opacity: 0.85;
+}
+.cardLocked:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.cardSpriteWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+.cardSprite {
+  max-width: 100%;
+  max-height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 0 8px rgba(203, 2, 178, 0.4));
+}
+.lockedSilhouette {
+  font-family: var(--font-display);
+  font-size: 72px;
+  color: var(--pixel-dim);
+  text-shadow: 0 0 20px var(--pixel-dim);
+  user-select: none;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cardName {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--neon-yellow);
+  text-shadow: 0 0 8px var(--neon-yellow);
+  letter-spacing: 0.05em;
+  line-height: 1.1;
+}
+.cardLocked .cardName {
+  color: var(--pixel-dim);
+  text-shadow: 0 0 6px var(--pixel-dim);
+}
+
+.cardSubtitle {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 4px var(--neon-cyan);
+  letter-spacing: 0.12em;
+  line-height: 1.5;
+}
+.cardLocked .cardSubtitle {
+  color: var(--pixel-dim);
+  text-shadow: none;
+}
+
+.cardDesc {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.55;
+  margin: 4px 0;
+}
+
+.cardStats {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.cardStat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+.cardStatLabel {
+  color: var(--pixel-dim);
+  margin: 0;
+}
+.cardStatValue {
+  color: #ffffff;
+  text-align: right;
+  margin: 0;
+}
+
+.cardSource {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--face-pink);
+  text-shadow: 0 0 4px var(--face-pink);
+  text-decoration: none;
+  letter-spacing: 0.12em;
+  padding: 6px 0;
+  margin-top: 4px;
+}
+.cardSource:hover {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 6px var(--neon-yellow);
+}
+
+/* ============================================================
+   Secret unlock hint
+   ============================================================ */
+.secretHint {
+  margin-top: 32px;
+  text-align: center;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: var(--neon-yellow);
+  text-shadow: 0 0 8px var(--neon-yellow);
+  letter-spacing: 0.18em;
+  padding: 16px;
+  border: 1px dashed var(--neon-yellow);
+}
+
+/* ============================================================
+   Mobile
+   ============================================================ */
+@media (max-width: 600px) {
+  .marquee { grid-template-columns: 1fr 1fr; font-size: 11px; padding: 10px 12px; }
+  .marqueeCenter { display: none; }
+  .main { padding: 20px 12px 60px; }
+  .pageTitle { font-size: 32px; }
+  .tabs { gap: 4px; }
+  .tab { font-size: 9px; padding: 8px 10px; letter-spacing: 0.1em; }
+  .cards { grid-template-columns: 1fr; gap: 14px; }
+  .card { padding: 16px; }
+  .cardName { font-size: 18px; }
+  .cardSpriteWrap { height: 100px; }
+}
