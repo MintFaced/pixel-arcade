@@ -1107,6 +1107,9 @@ export class GameEngine {
 
   private input: InputState = { left: false, right: false, fire: false };
 
+  /** When true, AI controls input and player is invincible (attract mode) */
+  private demoMode = false;
+
   constructor(canvas: HTMLCanvasElement, assets: AssetBundle, callbacks: GameCallbacks = {}) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
@@ -1131,6 +1134,7 @@ export class GameEngine {
    * setting high scores.
    */
   start(startWave?: number) {
+    this.demoMode = false;
     this.reset();
     if (startWave && startWave > 1) {
       this.wave = Math.min(startWave, SECRET_FINAL_WAVE);
@@ -1140,6 +1144,30 @@ export class GameEngine {
     this.running = true;
     this.lastTime = performance.now();
     this.loop();
+  }
+
+  /**
+   * Start attract-mode demo. AI controls an invincible ship through a
+   * mid-game wave. Caller should stop() when they want to end the demo
+   * (typically after ~25 seconds or when player interacts).
+   *
+   * Wave is chosen for visual interest: 22 has full enemy roster including
+   * titans, but no boss interrupting the action flow.
+   */
+  startDemo(demoWave = 22) {
+    this.demoMode = true;
+    this.reset();
+    this.wave = Math.min(Math.max(demoWave, 1), FINAL_WAVE);
+    this.emitStats();
+    this.emitPhase();
+    this.running = true;
+    this.lastTime = performance.now();
+    this.loop();
+  }
+
+  /** Whether the current loop is running an attract-mode demo */
+  isDemoMode(): boolean {
+    return this.demoMode;
   }
 
   stop() {
@@ -1185,6 +1213,14 @@ export class GameEngine {
   };
 
   private update(dt: number, enemySpeedScale: number) {
+    // In demo mode, AI generates input + player has permanent invincibility
+    // (uses the 'invincible' boost rather than the invulnerable flag so the
+    // player sprite doesn't blink — we want a continuous demo view).
+    if (this.demoMode) {
+      this.input = this.computeDemoInput();
+      this.player.boosts.set('invincible', Infinity);
+    }
+
     // Player updates regardless of phase
     this.player.update(dt, this.input);
     this.updatePlayerFire(dt);
@@ -1335,6 +1371,73 @@ export class GameEngine {
       this.bullets.push(new Bullet(this.player.x, this.player.y - 18, true, 0, -BULLET_SPEED, '#ffe000', piercing));
       this.fireCooldown = 1 / this.player.getFireRate();
     }
+  }
+
+  /**
+   * Demo-mode AI input. Strategy:
+   *  1. ALWAYS fire (auto-aim by tracking enemy columns)
+   *  2. Pick a target: nearest alive enemy or boss, prefer ones already below
+   *     formation (diving threats) over still-in-formation
+   *  3. Move toward target's X column
+   *  4. If an enemy bullet is heading near the player, dodge sideways
+   *  5. Avoid edges (don't pin against walls)
+   *
+   * Result: looks like a competent player without being aimbot-perfect.
+   * Some random hesitation makes it feel human.
+   */
+  private computeDemoInput(): InputState {
+    let moveLeft = false;
+    let moveRight = false;
+    const fire = true;
+
+    // 1. Dodge check — is there an enemy bullet within 60px horizontally and
+    //    falling toward the player's y level?
+    const dodgeRange = 50;
+    const lookaheadY = this.player.y - 20;
+    for (const b of this.bullets) {
+      if (b.fromPlayer || !b.alive) continue;
+      // Only consider bullets above player that could hit soon
+      if (b.y > this.player.y) continue;
+      if (b.y < lookaheadY - 180) continue;
+      const dx = b.x - this.player.x;
+      if (Math.abs(dx) < dodgeRange) {
+        // Bullet is in our column. Dodge opposite direction.
+        if (dx >= 0) moveLeft = true;
+        else moveRight = true;
+        return { left: moveLeft, right: moveRight, fire };
+      }
+    }
+
+    // 2. Target selection — pick highest-priority threat
+    let targetX: number | null = null;
+    let bestPriority = Infinity;
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      // Diving enemies are priority (lower number = higher priority)
+      // Lower (closer-to-player) enemies also priority
+      const priority = (e.state === 'diving' ? 0 : 100) - e.y;
+      if (priority < bestPriority) {
+        bestPriority = priority;
+        targetX = e.x;
+      }
+    }
+    if (this.boss?.alive) {
+      // Always shoot at boss when present
+      targetX = this.boss.x;
+    }
+
+    if (targetX !== null) {
+      const dx = targetX - this.player.x;
+      // Deadzone so we don't twitch
+      if (dx > 8) moveRight = true;
+      else if (dx < -8) moveLeft = true;
+    }
+
+    // 3. Avoid edge pinning
+    if (this.player.x < 40) { moveLeft = false; moveRight = true; }
+    if (this.player.x > PLAYFIELD_W - 40) { moveRight = false; moveLeft = true; }
+
+    return { left: moveLeft, right: moveRight, fire };
   }
 
   private spawnFormation() {
