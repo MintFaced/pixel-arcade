@@ -33,7 +33,7 @@
  */
 
 import type { AssetBundle, SpriteKey } from './assets';
-import { getAudio, type BossVoiceId } from './audio';
+import { getAudio, musicForWave, type BossVoiceId } from './audio';
 
 // ============================================================
 // Constants — all tunables in one place for easy iteration
@@ -1347,9 +1347,9 @@ export class GameEngine {
           this.spawnBoss();
         } else {
           this.spawnFormation();
-          // Non-boss wave — make sure gameplay music is running (boss music
-          // gets swapped in inside spawnBoss for boss waves)
-          if (!this.demoMode) void getAudio().playMusic('music-gameplay');
+          // Non-boss wave — pick chapter music for this wave (groups waves
+          // 1-4, 6-9, 11-14, etc. into shared chapter tracks)
+          if (!this.demoMode) void getAudio().playMusic(musicForWave(this.wave));
         }
         this.phase = 'playing';
         this.phaseTime = 0;
@@ -1621,8 +1621,8 @@ export class GameEngine {
     this.boss = new Boss(desc, this.spriteOf(desc.sprite));
     if (!this.demoMode) {
       getAudio().playSample('fx-boss-warning');
-      // MintFace gets her own track; all others share the boss track
-      void getAudio().playMusic(this.wave === SECRET_FINAL_WAVE ? 'music-mintface' : 'music-boss');
+      // Each boss now has its own dedicated track (musicForWave picks correctly)
+      void getAudio().playMusic(musicForWave(this.wave));
     }
   }
 

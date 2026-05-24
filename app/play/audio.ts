@@ -50,10 +50,57 @@ export type SampleSfx =
 
 /** Music tracks. Files in /swarm/audio/music/{key}.mp3 */
 export type MusicTrack =
+  // Attract / pre-game — plays on INSERT COIN screen + during demo
   | 'music-attract'
-  | 'music-gameplay'
-  | 'music-boss'
+  // Chapter music — one per chapter (4-5 waves each)
+  | 'music-chapter-1'
+  | 'music-chapter-2'
+  | 'music-chapter-3'
+  | 'music-chapter-4'
+  | 'music-chapter-5'
+  | 'music-chapter-6'
+  // Boss music — distinct track per boss
+  | 'music-boss-damager'
+  | 'music-boss-6529-punk'
+  | 'music-boss-rage'
+  | 'music-boss-spec-ops'
+  | 'music-boss-beast-mode'
+  | 'music-boss-max-pain'
   | 'music-mintface';
+
+/**
+ * Resolve which music track plays for a given wave number.
+ *
+ * Wave → music mapping:
+ *   1-4    → chapter-1   (cherry chapter, gentle entry)
+ *   5      → boss-damager
+ *   6-9    → chapter-2
+ *   10     → boss-6529-punk
+ *   11-14  → chapter-3
+ *   15     → boss-rage
+ *   16-19  → chapter-4
+ *   20     → boss-spec-ops
+ *   21-24  → chapter-5
+ *   25     → boss-beast-mode
+ *   26-30  → chapter-6 (or wave 30 → boss-max-pain)
+ *   30     → boss-max-pain
+ *   31     → mintface (secret final)
+ */
+export function musicForWave(wave: number): MusicTrack {
+  if (wave === 5)  return 'music-boss-damager';
+  if (wave === 10) return 'music-boss-6529-punk';
+  if (wave === 15) return 'music-boss-rage';
+  if (wave === 20) return 'music-boss-spec-ops';
+  if (wave === 25) return 'music-boss-beast-mode';
+  if (wave === 30) return 'music-boss-max-pain';
+  if (wave === 31) return 'music-mintface';
+  if (wave <= 4)   return 'music-chapter-1';
+  if (wave <= 9)   return 'music-chapter-2';
+  if (wave <= 14)  return 'music-chapter-3';
+  if (wave <= 19)  return 'music-chapter-4';
+  if (wave <= 24)  return 'music-chapter-5';
+  return 'music-chapter-6';   // 26-29 (wave 30 is handled above)
+}
 
 /** Boss IDs that have voice taunts. Files in /swarm/audio/voice/{bossId}-{idx}.mp3 */
 export type BossVoiceId =

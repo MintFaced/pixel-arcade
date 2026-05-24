@@ -379,13 +379,14 @@ export default function PlayPage() {
 
   /**
    * Music management — drives background music from the React side based on
-   * phase + running state. In-game music transitions (gameplay → boss → mintface)
-   * are handled inside the engine; this effect handles the wrapper states.
+   * phase + running state. In-game music transitions (chapter → boss → mintface)
+   * are handled inside the engine via musicForWave(); this effect handles the
+   * wrapper states.
    *
    * States:
    *   - pre-game / not running    → music-attract (the gallery vibe)
-   *   - demo active                → music-gameplay (light demo bed)
-   *   - playing real game          → engine has already started music-gameplay or music-boss
+   *   - demo active                → music-chapter-3 (mid-energy demo bed)
+   *   - playing real game          → engine starts the right wave/boss track
    *   - game-over / match-over     → silence so the game-over SFX has space
    */
   useEffect(() => {
@@ -395,8 +396,8 @@ export default function PlayPage() {
       // Pre-game or post-game: attract music
       void audio.playMusic('music-attract');
     } else if (demoActive) {
-      // Demo running — gentle music bed
-      void audio.playMusic('music-gameplay');
+      // Demo running — emerging vibe, mid-energy bed
+      void audio.playMusic('music-chapter-3');
     } else if (phase === 'game-over' || phase === 'match-over' || phase === 'true-victory' || phase === 'victory') {
       // End states — silence music so the SFX flourish has room
       void audio.playMusic(null);
