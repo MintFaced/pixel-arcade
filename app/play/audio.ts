@@ -159,8 +159,8 @@ export class AudioEngine {
 
   // Loaded sample buffers
   private sampleBuffers = new Map<string, AudioBuffer>();
-  /** Track in-flight music: source node + which track */
-  private currentMusic: { source: AudioBufferSourceNode; track: MusicTrack } | null = null;
+  /** Track in-flight music: source node + its fade gain + which track */
+  private currentMusic: { source: AudioBufferSourceNode; fadeGain: GainNode; track: MusicTrack } | null = null;
   /** Whether a voice clip is currently playing (for ducking music) */
   private voicePlaying = 0;
   /** Last-played voice timestamps per boss to avoid stacking same boss */
@@ -492,36 +492,64 @@ export class AudioEngine {
   }
 
   /**
+   * Track we are *currently transitioning to or playing*. Used as a fast-path
+   * dedup check so concurrent playMusic() calls don't both start sources.
+   * Updated synchronously at the top of playMusic() before any awaits.
+   */
+  private pendingTrack: MusicTrack | null = null;
+
+  /**
    * Start a music track. If a track is already playing, cross-fades to the new
-   * one over 0.5s. If `track` is null, fades out the current music.
+   * one over 0.5s (old fades out, new fades in). If `track` is null, fades out
+   * the current music.
+   *
+   * Concurrency: this function is async (awaits resume + sample load). Multiple
+   * rapid calls are safe — only the most recently requested track wins. The
+   * `pendingTrack` check at the top bails out duplicate calls for the same
+   * track while one is still in flight.
    */
   async playMusic(track: MusicTrack | null) {
     if (!this.ctx || !this.musicGain) {
       this.ensureContext();
       if (!this.ctx || !this.musicGain) return;
     }
-    // No change?
-    if (this.currentMusic?.track === track) return;
+    // Dedup: already playing this track, or already transitioning to it
+    if (this.pendingTrack === track) return;
+    // Record intent IMMEDIATELY — before any awaits — so subsequent calls
+    // for the same track bail and subsequent calls for a different track
+    // can see what we're switching to.
+    this.pendingTrack = track;
 
     await this.tryResume();
     if (this.ctx.state !== 'running' && track !== null) {
       // We'll be called again when audio unlocks
       this.wantsToPlay = true;
+      this.pendingTrack = null;   // reset so retry isn't deduped
       return;
     }
+
+    // While we were awaiting, someone else may have requested a different
+    // track. Bail if so — the latest call will handle the actual switch.
+    if (this.pendingTrack !== track) return;
 
     const ctx = this.ctx;
     const now = ctx.currentTime;
     const fadeTime = 0.5;
 
-    // Fade out current
+    // Fade out current with a proper gain ramp, then stop the source.
+    // We need a per-source gain node — the bus gain affects ALL music, so
+    // we can't ramp it down without also dimming the incoming fade-in.
     if (this.currentMusic) {
-      const old = this.currentMusic.source;
+      const old = this.currentMusic;
+      // The source was connected through a fade gain when it started — find it.
+      // We store the fade gain alongside the source now (see end of this fn).
       try {
-        // Cross-fade by ducking through the bus gain — simpler: just stop old
-        // with a fadeout via a gain node attached at the source
-        // (the simple version: schedule stop with fade)
-        old.stop(now + fadeTime + 0.05);
+        if (old.fadeGain) {
+          old.fadeGain.gain.cancelScheduledValues(now);
+          old.fadeGain.gain.setValueAtTime(old.fadeGain.gain.value, now);
+          old.fadeGain.gain.linearRampToValueAtTime(0, now + fadeTime);
+        }
+        old.source.stop(now + fadeTime + 0.05);
       } catch {
         // already stopped
       }
@@ -530,6 +558,7 @@ export class AudioEngine {
 
     if (track === null) {
       // Just fading out, no new music to start
+      this.pendingTrack = null;
       return;
     }
 
@@ -538,23 +567,30 @@ export class AudioEngine {
       try {
         await this.loadSample(`/swarm/audio/music/${track}.mp3`, track);
       } catch {
+        this.pendingTrack = null;
         return;
       }
+      // Re-check pending in case caller switched again during load
+      if (this.pendingTrack !== track) return;
     }
     const buffer = this.sampleBuffers.get(track);
-    if (!buffer) return;
+    if (!buffer) {
+      this.pendingTrack = null;
+      return;
+    }
 
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     src.loop = true;
-    // Per-source fade-in via a dedicated gain node
+    // Per-source fade-in via a dedicated gain node (kept on the record so
+    // the NEXT playMusic() call can use it to fade THIS source out cleanly).
     const fadeGain = ctx.createGain();
     fadeGain.gain.setValueAtTime(0, now);
     fadeGain.gain.linearRampToValueAtTime(1, now + fadeTime);
     src.connect(fadeGain);
     fadeGain.connect(this.musicGain);
     src.start(now);
-    this.currentMusic = { source: src, track };
+    this.currentMusic = { source: src, fadeGain, track };
   }
 
   /**
