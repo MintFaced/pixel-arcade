@@ -33,6 +33,7 @@
  */
 
 import type { AssetBundle, SpriteKey } from './assets';
+import { getAudio, type BossVoiceId } from './audio';
 
 // ============================================================
 // Constants — all tunables in one place for easy iteration
@@ -95,11 +96,24 @@ export interface GameStats {
   multiplier: number;
   activeBoosts: ActiveBoost[];
   bossHp: { current: number; max: number; name: string } | null;
+  // Two-player mode info
+  mode: 'single' | 'twoPlayer';
+  currentPlayer: 1 | 2;
+  /** Captured score for P1 once their turn ends (0 before) */
+  p1Score: number;
+  /** Wave P1 reached when they finished */
+  p1Wave: number;
+  /** Captured score for P2 once their turn ends (0 before) */
+  p2Score: number;
+  p2Wave: number;
 }
 
 export type GamePhase =
   | 'pre-game' | 'wave-intro' | 'playing' | 'boss-incoming'
-  | 'wave-clear' | 'victory' | 'mintface-incoming' | 'true-victory' | 'game-over';
+  | 'wave-clear' | 'victory' | 'mintface-incoming' | 'true-victory' | 'game-over'
+  // Two-player hot-seat phases
+  | 'p2-ready'        // P1 done, P2 press to start
+  | 'match-over';     // Both players done, show comparison
 
 export interface GameCallbacks {
   onStatsChange?: (stats: GameStats) => void;
@@ -141,11 +155,14 @@ interface BossDescriptor {
   color: string;
   /** Phrases boss occasionally shouts in a speech bubble. Random pick each time. */
   taunts: string[];
+  /** Voice ID for audio taunts (maps to /swarm/audio/voice/taunt-{voiceId}-N.mp3) */
+  voiceId: BossVoiceId;
 }
 
 const BOSSES: Record<number, BossDescriptor> = {
   5:  {
     name: 'DAMAGER', sprite: 'boss-damager', hp: 30, pattern: 'spiral', color: '#ff1ad9',
+    voiceId: 'damager',
     taunts: [
       'BATTERY LOW',
       'POWER DRAIN INITIATED',
@@ -155,6 +172,7 @@ const BOSSES: Record<number, BossDescriptor> = {
   },
   10: {
     name: '6529 PUNK', sprite: 'boss-doomed-red', hp: 50, pattern: 'sweep', color: '#7eb8d4',
+    voiceId: '6529-punk',
     taunts: [
       'SEIZE THE MEMES!',
       'YOU ARE NOT BULLISH ENOUGH!',
@@ -164,6 +182,7 @@ const BOSSES: Record<number, BossDescriptor> = {
   },
   15: {
     name: 'RAGE', sprite: 'boss-rage', hp: 70, pattern: 'rain', color: '#ff0000',
+    voiceId: 'rage',
     taunts: [
       'RAGE MODE ACTIVATED',
       'NO MERCY',
@@ -173,6 +192,7 @@ const BOSSES: Record<number, BossDescriptor> = {
   },
   20: {
     name: 'SPECIAL OP', sprite: 'boss-spec-ops', hp: 95, pattern: 'beam', color: '#3a55ff',
+    voiceId: 'spec-ops',
     taunts: [
       'ORDERS ARE ORDERS',
       'COMPLIANCE IS MANDATORY',
@@ -182,6 +202,7 @@ const BOSSES: Record<number, BossDescriptor> = {
   },
   25: {
     name: 'BEAST MODE', sprite: 'boss-beast', hp: 120, pattern: 'rage', color: '#00d5cc',
+    voiceId: 'beast-mode',
     taunts: [
       'FEED ME',
       'ALPHA DETECTED',
@@ -191,6 +212,7 @@ const BOSSES: Record<number, BossDescriptor> = {
   },
   30: {
     name: 'MAX PAIN', sprite: 'boss-maxpain', hp: 200, pattern: 'mixed', color: '#ff1ad9',
+    voiceId: 'max-pain',
     taunts: [
       'THIS IS THE BOTTOM',
       'JUST KIDDING',
@@ -203,6 +225,7 @@ const BOSSES: Record<number, BossDescriptor> = {
   // Secret final boss — only unlocked by clearing wave 30
   31: {
     name: 'MINTFACE', sprite: 'boss-mintface', hp: 300, pattern: 'transcend', color: '#ffe000',
+    voiceId: 'mintface',
     taunts: [
       'I AM THE ARTIST',
       'THIS IS MY ARCADE',
@@ -539,12 +562,15 @@ class Boss implements Entity {
   spiralAngle = 0;
   // Taunts
   taunts: string[];
+  voiceId: BossVoiceId;
   /** State machine: idle → fading-in → holding → fading-out → idle */
   tauntPhase: 'idle' | 'fading-in' | 'holding' | 'fading-out' = 'idle';
   /** Seconds left in current phase */
   tauntTimer = 0;
   /** Current phrase being shown (only valid when not idle) */
   currentTaunt = '';
+  /** Index of the current taunt within the boss's taunts array — used to fetch matching voice clip */
+  currentTauntIdx = 0;
   /** Time until next taunt fires (when idle) */
   tauntCooldown = 0;
 
@@ -558,6 +584,7 @@ class Boss implements Entity {
     this.sprite = sprite;
     this.color = desc.color;
     this.taunts = desc.taunts;
+    this.voiceId = desc.voiceId;
     // First taunt comes ~2 sec after boss appears (so the wave-intro overlay clears first)
     this.tauntCooldown = 2.0;
   }
@@ -735,9 +762,12 @@ class Boss implements Entity {
       case 'idle': {
         this.tauntCooldown -= dt;
         if (this.tauntCooldown <= 0) {
-          this.currentTaunt = this.taunts[Math.floor(Math.random() * this.taunts.length)];
+          this.currentTauntIdx = Math.floor(Math.random() * this.taunts.length);
+          this.currentTaunt = this.taunts[this.currentTauntIdx];
           this.tauntPhase = 'fading-in';
           this.tauntTimer = 0.3;
+          // Fire the matching voice clip — silently no-ops if no recording exists yet
+          void getAudio().playBossTaunt(this.voiceId, this.currentTauntIdx);
         }
         break;
       }
@@ -1087,6 +1117,19 @@ export class GameEngine {
   private lives = STARTING_LIVES;
   private streak = 0;
 
+  // Two-player hot-seat state
+  /** 'single' = solo, 'twoPlayer' = hot-seat alternating */
+  private mode: 'single' | 'twoPlayer' = 'single';
+  /** Which player is currently at the controls (1 or 2). Only meaningful in 2P. */
+  private currentPlayer: 1 | 2 = 1;
+  /** Final score of P1's turn — captured at p1's game over */
+  private p1Score = 0;
+  /** Final wave reached by P1 */
+  private p1Wave = 0;
+  /** P2's final stats — captured at p2's game over */
+  private p2Score = 0;
+  private p2Wave = 0;
+
   // Entities
   private player!: Player;
   private bullets: Bullet[] = [];
@@ -1124,17 +1167,44 @@ export class GameEngine {
     return this.assets.sprites.get(key)!;
   }
 
+  /** Keyboard input (set by React on keydown/keyup) */
   setInput(input: Partial<InputState>) {
     this.input = { ...this.input, ...input };
   }
 
   /**
-   * Start a new game. If startWave is provided (dev/QA mode), jump straight
-   * to that wave. Player still has 3 lives — this is for testing, not for
-   * setting high scores.
+   * Gamepad input — set per frame by the React polling loop. ORed with
+   * keyboard input each tick. Stored separately so a keyboard key release
+   * doesn't override a held gamepad button (and vice versa).
    */
-  start(startWave?: number) {
+  private gamepadInput: InputState = { left: false, right: false, fire: false };
+
+  setGamepadInput(input: Partial<InputState>) {
+    this.gamepadInput = { ...this.gamepadInput, ...input };
+  }
+
+  /** Combined input view used by update logic */
+  private getCombinedInput(): InputState {
+    return {
+      left:  this.input.left  || this.gamepadInput.left,
+      right: this.input.right || this.gamepadInput.right,
+      fire:  this.input.fire  || this.gamepadInput.fire,
+    };
+  }
+
+  /**
+   * Start a new game.
+   * @param startWave Optional dev/QA wave skip
+   * @param mode 'single' (default) or 'twoPlayer' (hot-seat alternating)
+   */
+  start(startWave?: number, mode: 'single' | 'twoPlayer' = 'single') {
     this.demoMode = false;
+    this.mode = mode;
+    this.currentPlayer = 1;
+    this.p1Score = 0;
+    this.p1Wave = 0;
+    this.p2Score = 0;
+    this.p2Wave = 0;
     this.reset();
     if (startWave && startWave > 1) {
       this.wave = Math.min(startWave, SECRET_FINAL_WAVE);
@@ -1144,6 +1214,30 @@ export class GameEngine {
     this.running = true;
     this.lastTime = performance.now();
     this.loop();
+  }
+
+  /**
+   * Hot-seat handoff: after p2-ready phase, start P2's turn. Resets the
+   * playfield while preserving scoreboard state.
+   */
+  startNextPlayer() {
+    if (this.mode !== 'twoPlayer' || this.currentPlayer !== 2) return;
+    // Reset the active gameplay state but keep p1 scores
+    this.score = 0;
+    this.lives = STARTING_LIVES;
+    this.wave = 1;
+    this.streak = 0;
+    this.player = new Player(this.spriteOf('player-ship'));
+    this.bullets = [];
+    this.enemies = [];
+    this.powerUps = [];
+    this.collectibles = [];
+    this.particles = [];
+    this.boss = null;
+    this.phase = 'wave-intro';
+    this.phaseTime = 0;
+    this.emitStats();
+    this.emitPhase();
   }
 
   /**
@@ -1218,12 +1312,15 @@ export class GameEngine {
     // player sprite doesn't blink — we want a continuous demo view).
     if (this.demoMode) {
       this.input = this.computeDemoInput();
+      // Clear gamepad so a stuck button doesn't override the AI
+      this.gamepadInput = { left: false, right: false, fire: false };
       this.player.boosts.set('invincible', Infinity);
     }
 
-    // Player updates regardless of phase
-    this.player.update(dt, this.input);
-    this.updatePlayerFire(dt);
+    // Player updates regardless of phase. Combined = keyboard OR gamepad.
+    const combinedInput = this.getCombinedInput();
+    this.player.update(dt, combinedInput);
+    this.updatePlayerFire(dt, combinedInput);
 
     // Bullets/particles/powerups always tick
     for (const b of this.bullets) {
@@ -1246,8 +1343,14 @@ export class GameEngine {
     if (this.phase === 'wave-intro') {
       if (this.phaseTime > 1.5) {
         const isBoss = !!BOSSES[this.wave];
-        if (isBoss) this.spawnBoss();
-        else this.spawnFormation();
+        if (isBoss) {
+          this.spawnBoss();
+        } else {
+          this.spawnFormation();
+          // Non-boss wave — make sure gameplay music is running (boss music
+          // gets swapped in inside spawnBoss for boss waves)
+          if (!this.demoMode) void getAudio().playMusic('music-gameplay');
+        }
         this.phase = 'playing';
         this.phaseTime = 0;
         this.diveTimer = 1.5;
@@ -1303,7 +1406,14 @@ export class GameEngine {
             : c.type === 'glasses-zeros' ? '#ffffff'
             : c.type === 'glasses-purple' ? '#9933ff'
             : '#ff66cc';
-          this.explode(c.x, c.y, color, false);
+          this.explode(c.x, c.y, color, false, true);   // silent — own pickup SFX
+          if (!this.demoMode) {
+            if (c.type === 'cherry') {
+              getAudio().playSample('fx-cherry');         // The PixelArcade brand chime
+            } else {
+              getAudio().playSynth('glasses-pickup');
+            }
+          }
           this.emitStats();
         }
       }
@@ -1329,15 +1439,24 @@ export class GameEngine {
           this.phase = 'true-victory';
           this.phaseTime = 0;
           this.emitPhase();
+          if (!this.demoMode) {
+            getAudio().playSample('fx-true-victory');
+            void getAudio().playMusic(null);   // silence music for the moment
+          }
         } else if (this.wave === FINAL_WAVE) {
           // Beat Max Pain — secret transition into MintFace fight
           this.phase = 'mintface-incoming';
           this.phaseTime = 0;
           this.emitPhase();
+          if (!this.demoMode) {
+            getAudio().playSample('fx-mintface-incoming');
+            void getAudio().playMusic(null);   // mute music during the WAIT moment
+          }
         } else {
           this.phase = 'wave-clear';
           this.phaseTime = 0;
           this.emitPhase();
+          if (!this.demoMode) getAudio().playSynth('wave-clear');
         }
         this.emitStats();
       }
@@ -1367,18 +1486,26 @@ export class GameEngine {
       return;
     }
 
-    if (this.phase === 'victory' || this.phase === 'true-victory' || this.phase === 'game-over') {
+    if (
+      this.phase === 'victory' ||
+      this.phase === 'true-victory' ||
+      this.phase === 'game-over' ||
+      this.phase === 'p2-ready' ||
+      this.phase === 'match-over'
+    ) {
       // particles continue to fade
       return;
     }
   }
 
-  private updatePlayerFire(dt: number) {
+  private updatePlayerFire(dt: number, input: InputState) {
     this.fireCooldown -= dt;
-    if (this.input.fire && this.fireCooldown <= 0 && this.phase === 'playing') {
+    if (input.fire && this.fireCooldown <= 0 && this.phase === 'playing') {
       const piercing = false; // future power-up
       this.bullets.push(new Bullet(this.player.x, this.player.y - 18, true, 0, -BULLET_SPEED, '#ffe000', piercing));
       this.fireCooldown = 1 / this.player.getFireRate();
+      // Skip SFX during demo mode — would be obnoxious during attract
+      if (!this.demoMode) getAudio().playSynth('player-shot');
     }
   }
 
@@ -1492,6 +1619,11 @@ export class GameEngine {
     const desc = BOSSES[this.wave];
     if (!desc) return;
     this.boss = new Boss(desc, this.spriteOf(desc.sprite));
+    if (!this.demoMode) {
+      getAudio().playSample('fx-boss-warning');
+      // MintFace gets her own track; all others share the boss track
+      void getAudio().playMusic(this.wave === SECRET_FINAL_WAVE ? 'music-mintface' : 'music-boss');
+    }
   }
 
   private checkCollisions() {
@@ -1616,7 +1748,7 @@ export class GameEngine {
   private applyPowerUp(type: PowerUpType) {
     if (type === 'life') {
       this.lives += 1;
-      this.explode(this.player.x, this.player.y - 20, '#00ffd0', false);
+      this.explode(this.player.x, this.player.y - 20, '#00ffd0', false, true);
     } else if (type === 'multiplier') {
       // Instant bonus + temporary multiplier
       this.score += POWERUP_SCORE * this.currentMultiplier();
@@ -1624,8 +1756,9 @@ export class GameEngine {
     } else {
       this.player.applyPowerUp(type);
     }
-    // Pickup sparkle
-    this.explode(this.player.x, this.player.y - 20, '#ffe000', false);
+    // Pickup sparkle (silent — own pickup chime below)
+    this.explode(this.player.x, this.player.y - 20, '#ffe000', false, true);
+    if (!this.demoMode) getAudio().playSynth('powerup-pickup');
     this.emitStats();
   }
 
@@ -1643,7 +1776,8 @@ export class GameEngine {
     if (this.player.hasShield()) {
       this.player.consumeShield();
       this.player.invulnerable = 0.5;
-      this.explode(this.player.x, this.player.y, '#00ffd0', false);
+      this.explode(this.player.x, this.player.y, '#00ffd0', false, true);   // silent — own SFX below
+      if (!this.demoMode) getAudio().playSample('fx-shield-break');
       this.emitStats();
       return;
     }
@@ -1652,9 +1786,35 @@ export class GameEngine {
     this.explode(this.player.x, this.player.y, '#00ffd0', true);
     this.emitStats();
     if (this.lives <= 0) {
+      // Game-over wail (or P1's turn end in 2P)
+      if (!this.demoMode) getAudio().playSample('fx-player-death');
+      // Two-player hot-seat handoff
+      if (this.mode === 'twoPlayer') {
+        if (this.currentPlayer === 1) {
+          // Capture P1 results, prep for P2 handoff
+          this.p1Score = this.score;
+          this.p1Wave = this.wave;
+          this.currentPlayer = 2;
+          this.phase = 'p2-ready';
+          this.phaseTime = 0;
+          this.emitStats();
+          this.emitPhase();
+          return;
+        }
+        // P2 just died — capture and show comparison
+        this.p2Score = this.score;
+        this.p2Wave = this.wave;
+        this.phase = 'match-over';
+        this.phaseTime = 0;
+        this.emitStats();
+        this.emitPhase();
+        return;
+      }
+      // Single-player: normal game over
       this.phase = 'game-over';
       this.phaseTime = 0;
       this.emitPhase();
+      if (!this.demoMode) getAudio().playSample('fx-game-over');
     } else {
       // Re-create player, preserve no boosts
       this.player = new Player(this.spriteOf('player-ship'));
@@ -1662,10 +1822,20 @@ export class GameEngine {
     }
   }
 
-  private explode(x: number, y: number, color: string, big: boolean) {
+  private explode(x: number, y: number, color: string, big: boolean, silent = false) {
     const n = big ? 28 : 14;
     for (let i = 0; i < n; i++) {
       this.particles.push(new Particle(x, y, color, big));
+    }
+    // Explosion SFX. Skip in demo mode (gets noisy with constant AI play).
+    // The `silent` flag is for non-explosion effects (pickup sparkles, shield breaks)
+    // where the caller wants particles only and will play its own sound.
+    // Pitch variance keeps repeat explosions from sounding mechanical.
+    if (!this.demoMode && !silent) {
+      getAudio().playSample(big ? 'fx-explode-big' : 'fx-explode-small', {
+        pitchVariance: big ? 0.3 : 0.5,
+        volumeScale: big ? 1.0 : 0.7,
+      });
     }
   }
 
@@ -1858,6 +2028,12 @@ export class GameEngine {
       bossHp: this.boss
         ? { current: this.boss.hp, max: this.boss.maxHp, name: this.boss.name }
         : null,
+      mode: this.mode,
+      currentPlayer: this.currentPlayer,
+      p1Score: this.p1Score,
+      p1Wave: this.p1Wave,
+      p2Score: this.p2Score,
+      p2Wave: this.p2Wave,
     };
   }
 

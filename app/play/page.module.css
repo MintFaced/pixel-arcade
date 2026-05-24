@@ -40,10 +40,33 @@
   border-radius: 2px;
 }
 .marqueeRight {
-  text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
   color: var(--neon-cyan);
   text-shadow: 0 0 6px var(--neon-cyan);
   font-size: 11px;
+}
+.marqueeStatus {
+  font-family: var(--font-pixel);
+}
+.muteToggle {
+  background: transparent;
+  border: 1px solid rgba(0, 255, 208, 0.4);
+  color: var(--neon-cyan);
+  text-shadow: 0 0 6px var(--neon-cyan);
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-family: var(--font-pixel);
+  transition: all 0.15s;
+}
+.muteToggle:hover {
+  border-color: var(--neon-yellow);
+  color: var(--neon-yellow);
+  text-shadow: 0 0 8px var(--neon-yellow);
 }
 
 .main {
@@ -552,4 +575,183 @@
     text-shadow: 0 0 6px var(--neon-cyan);
   }
   .controls > * { display: none; }
+}
+
+/* ============================================================
+   Two-Player / Hot-Seat mode UI
+   ============================================================ */
+
+/* Mode selection buttons on pre-game */
+.modeButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+.startBtnDim {
+  opacity: 0.65;
+}
+.startBtnDim:hover {
+  opacity: 1;
+}
+
+/* Controller-detection status line */
+.padStatus {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 4px var(--neon-cyan);
+  letter-spacing: 0.18em;
+  padding: 6px 12px;
+  border: 1px solid rgba(0, 255, 208, 0.4);
+  margin: 4px 0;
+}
+
+/* Player badge in HUD during 2P play */
+.playerBadge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 5px;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  vertical-align: top;
+}
+.p1Badge {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 4px var(--neon-cyan);
+}
+.p2Badge {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 4px var(--neon-yellow);
+}
+
+/* Carried-over P1 score during P2's turn */
+.hudSub {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--pixel-dim);
+  letter-spacing: 0.1em;
+  margin-top: 2px;
+}
+
+/* Handoff screen: P1 done, P2 ready */
+.handoffTitle {
+  font-family: var(--font-display);
+  font-size: 28px;
+  color: var(--face-pink);
+  text-shadow: 0 0 12px var(--face-pink);
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+.handoffScore {
+  font-family: var(--font-pixel);
+  font-size: 14px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 6px var(--neon-cyan);
+  letter-spacing: 0.15em;
+  margin: 4px 0 12px;
+}
+.handoffBig {
+  font-family: var(--font-display);
+  font-size: 52px;
+  color: var(--neon-yellow);
+  text-shadow: 0 0 20px var(--neon-yellow), 3px 3px 0 var(--face-pink);
+  letter-spacing: 0.06em;
+  margin: 8px 0 4px;
+  animation: handoffPulse 1s ease-in-out infinite;
+}
+@keyframes handoffPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+.handoffPrompt {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 6px var(--neon-cyan);
+  letter-spacing: 0.2em;
+  margin: 0 0 12px;
+}
+
+/* Match-over comparison screen */
+.matchTitle {
+  font-family: var(--font-display);
+  font-size: 36px;
+  color: var(--face-pink);
+  text-shadow: 0 0 16px var(--face-pink);
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+.scoreBoard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  margin: 16px 0;
+}
+.scoreEntry {
+  flex: 1;
+  max-width: 200px;
+  padding: 16px 12px;
+  border: 2px solid var(--pixel-dim);
+  text-align: center;
+  background: rgba(10, 4, 30, 0.6);
+}
+.scoreWinner {
+  border-color: var(--neon-yellow);
+  box-shadow: 0 0 16px rgba(255, 224, 0, 0.5);
+  background: rgba(255, 224, 0, 0.08);
+}
+.scoreLabel {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 4px var(--neon-cyan);
+  letter-spacing: 0.18em;
+  margin-bottom: 6px;
+}
+.scoreWinner .scoreLabel {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 6px var(--neon-yellow);
+}
+.scoreValue {
+  font-family: var(--font-display);
+  font-size: 30px;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+.scoreWinner .scoreValue {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 12px var(--neon-yellow);
+}
+.scoreSub {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--pixel-dim);
+  letter-spacing: 0.15em;
+  margin-top: 6px;
+}
+.scoreVs {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--face-pink);
+  text-shadow: 0 0 8px var(--face-pink);
+}
+.matchResult {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--neon-yellow);
+  text-shadow: 0 0 12px var(--neon-yellow);
+  letter-spacing: 0.06em;
+  margin: 8px 0;
+  animation: matchResultPulse 1.4s ease-in-out infinite;
+}
+@keyframes matchResultPulse {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
 }

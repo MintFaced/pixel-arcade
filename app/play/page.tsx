@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { GameEngine, type GameStats, type GamePhase, PLAYFIELD_W, PLAYFIELD_H } from './engine';
 import { loadAssets, type AssetBundle } from './assets';
+import { readGamepad, gamepadCount } from './gamepad';
+import { getAudio } from './audio';
 import styles from './page.module.css';
 
 /**
@@ -44,6 +46,8 @@ export default function PlayPage() {
   const [stats, setStats] = useState<GameStats>({
     score: 0, lives: 3, wave: 1, streak: 0, multiplier: 1,
     activeBoosts: [], bossHp: null,
+    mode: 'single', currentPlayer: 1,
+    p1Score: 0, p1Wave: 0, p2Score: 0, p2Wave: 0,
   });
   const [phase, setPhase] = useState<GamePhase>('pre-game');
   const [running, setRunning] = useState(false);
@@ -52,6 +56,13 @@ export default function PlayPage() {
   /** Timers we may need to cancel — kept in refs so cleanup is correct */
   const demoIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const demoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Mute state — synced with AudioEngine, displayed in HUD */
+  const [isMuted, setIsMuted] = useState(false);
+  useEffect(() => {
+    // On mount, read persisted mute state from the audio engine
+    setIsMuted(getAudio().isMuted());
+  }, []);
 
   // === Asset loading ===
   useEffect(() => {
@@ -65,6 +76,10 @@ export default function PlayPage() {
       assetsRef.current = bundle;
       // The game-over sprite is optional — only render the image if it loaded
       setHasGameOverImage(bundle.sprites.has('game-over'));
+      // Preload audio SFX in parallel. Doesn't block the loading screen — failures
+      // are silent (the game will fall back to no-sound for any unloaded sample).
+      void getAudio().preloadSfx();
+      void getAudio().preloadVoiceTaunts();
       setLoadState({ loaded: bundle.sprites.size, total: bundle.sprites.size, current: '', done: true, failed: bundle.failed });
     })();
     return () => { cancelled = true; };
@@ -103,6 +118,15 @@ export default function PlayPage() {
       engine.setInput(input);
     };
     const onKeyDown = (e: KeyboardEvent) => {
+      // First-interaction audio unlock (browser autoplay policy)
+      getAudio().unlock();
+      // M key toggles mute, regardless of game phase
+      if (e.code === 'KeyM') {
+        e.preventDefault();
+        const muted = getAudio().toggleMute();
+        setIsMuted(muted);
+        return;
+      }
       // During demo: any control input cancels demo and starts real game
       if (engineRef.current?.isDemoMode()) {
         if (KEY_MAP[e.code] || e.code === 'Enter' || e.code === 'KeyR') {
@@ -147,6 +171,8 @@ export default function PlayPage() {
     let touchX: number | null = null;
     let touchActive = false;
     const onStart = (e: TouchEvent) => {
+      // First-interaction audio unlock (mobile autoplay policy)
+      getAudio().unlock();
       // Touch during demo starts real game instead of registering as input
       if (engine.isDemoMode()) {
         e.preventDefault();
@@ -180,6 +206,79 @@ export default function PlayPage() {
       canvas.removeEventListener('touchend', onEnd);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadState.done]);
+
+  /**
+   * Gamepad polling.
+   *
+   * The Gamepad API requires per-frame polling (no events for analog/held state).
+   * Separate requestAnimationFrame loop reads the active player's gamepad:
+   *   - Sends movement+fire to engine.setGamepadInput (OR-merges with keyboard)
+   *   - Detects start-press for handoff (p2-ready) and post-game restart
+   *   - Updates connection count for the controller-detection UI badge
+   *
+   * Active controller index: 0 for P1 / single, 1 for P2 in hot-seat mode.
+   * Each player has their own physical controller for the whole match.
+   */
+  const [connectedPads, setConnectedPads] = useState(0);
+  /** Refs let the rAF loop see latest phase + callbacks without recreating itself */
+  const phaseRef = useRef<GamePhase>('pre-game');
+  const startGameRef = useRef<(() => void) | null>(null);
+
+  // Keep phaseRef in sync with state
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
+  useEffect(() => {
+    if (!loadState.done) return;
+    let rafId: number | null = null;
+    let lastConnectedCheck = 0;
+
+    const tick = () => {
+      const engine = engineRef.current;
+      if (!engine) {
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
+      // Throttle: connection count doesn't change frame-to-frame
+      const now = performance.now();
+      if (now - lastConnectedCheck > 250) {
+        setConnectedPads(gamepadCount());
+        lastConnectedCheck = now;
+      }
+
+      // Active pad index based on whose turn it is
+      const s = engine.getStats();
+      const padIndex = (s.mode === 'twoPlayer' && s.currentPlayer === 2) ? 1 : 0;
+      const snap = readGamepad(padIndex);
+
+      // Send held-button state to engine (OR-merged with keyboard)
+      engine.setGamepadInput({
+        left: snap.left,
+        right: snap.right,
+        fire: snap.fire,
+      });
+
+      // Edge-triggered start press handles phase transitions
+      if (snap.startPressed) {
+        const p = phaseRef.current;
+        if (p === 'p2-ready') {
+          engine.startNextPlayer();
+        } else if (
+          p === 'pre-game' || p === 'game-over' ||
+          p === 'match-over' || p === 'true-victory' || p === 'victory'
+        ) {
+          startGameRef.current?.();
+        }
+      }
+
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, [loadState.done]);
 
   /**
@@ -278,8 +377,45 @@ export default function PlayPage() {
     // We're back in attract mode; the other effect handles scheduling
   }, [demoActive, loadState.done, running]);
 
-  const startGame = useCallback(() => {
+  /**
+   * Music management — drives background music from the React side based on
+   * phase + running state. In-game music transitions (gameplay → boss → mintface)
+   * are handled inside the engine; this effect handles the wrapper states.
+   *
+   * States:
+   *   - pre-game / not running    → music-attract (the gallery vibe)
+   *   - demo active                → music-gameplay (light demo bed)
+   *   - playing real game          → engine has already started music-gameplay or music-boss
+   *   - game-over / match-over     → silence so the game-over SFX has space
+   */
+  useEffect(() => {
+    if (!loadState.done) return;
+    const audio = getAudio();
+    if (!running) {
+      // Pre-game or post-game: attract music
+      void audio.playMusic('music-attract');
+    } else if (demoActive) {
+      // Demo running — gentle music bed
+      void audio.playMusic('music-gameplay');
+    } else if (phase === 'game-over' || phase === 'match-over' || phase === 'true-victory' || phase === 'victory') {
+      // End states — silence music so the SFX flourish has room
+      void audio.playMusic(null);
+    } else if (phase === 'p2-ready') {
+      // Hot-seat handoff — same gentle attract vibe
+      void audio.playMusic('music-attract');
+    }
+    // Other in-game phases handled by engine.spawnBoss / wave-intro logic
+  }, [loadState.done, running, demoActive, phase]);
+
+  /** Mode the user selected on the pre-game screen (or last played) */
+  const [selectedMode, setSelectedMode] = useState<'single' | 'twoPlayer'>('single');
+
+  const startGame = useCallback((mode?: 'single' | 'twoPlayer') => {
     if (!engineRef.current || !loadState.done) return;
+    // Audio unlock — covers all click-driven entry points (button + demo overlay)
+    getAudio().unlock();
+    const m = mode ?? selectedMode;
+    if (mode) setSelectedMode(mode);
     // Tear down any demo / timers first
     cancelAttractTimer();
     if (demoStopTimerRef.current) {
@@ -287,9 +423,20 @@ export default function PlayPage() {
       demoStopTimerRef.current = null;
     }
     setDemoActive(false);
-    engineRef.current.start(getStartWave());
+    engineRef.current.start(getStartWave(), m);
     setRunning(true);
-  }, [loadState.done, getStartWave, cancelAttractTimer]);
+  }, [loadState.done, getStartWave, cancelAttractTimer, selectedMode]);
+
+  // Keep ref in sync so the gamepad polling loop can call startGame
+  useEffect(() => {
+    startGameRef.current = () => startGame();
+  }, [startGame]);
+
+  /** Hot-seat handoff handler — wired to buttons and gamepad start */
+  const startNextPlayer = useCallback(() => {
+    if (!engineRef.current) return;
+    engineRef.current.startNextPlayer();
+  }, []);
 
   const loadPct = loadState.total > 0 ? Math.round((loadState.loaded / loadState.total) * 100) : 0;
 
@@ -306,11 +453,25 @@ export default function PlayPage() {
           )}
         </div>
         <div className={styles.marqueeRight}>
-          {phase === 'playing' || phase === 'wave-intro' || phase === 'wave-clear'
-            ? 'BATTLE'
-            : phase === 'victory'
-            ? '★ VICTORY ★'
-            : 'STANDBY'}
+          <button
+            type="button"
+            className={styles.muteToggle}
+            onClick={() => {
+              getAudio().unlock();
+              setIsMuted(getAudio().toggleMute());
+            }}
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
+            title={isMuted ? 'UNMUTE (M)' : 'MUTE (M)'}
+          >
+            {isMuted ? '🔇' : '♪'}
+          </button>
+          <span className={styles.marqueeStatus}>
+            {phase === 'playing' || phase === 'wave-intro' || phase === 'wave-clear'
+              ? 'BATTLE'
+              : phase === 'victory'
+              ? '★ VICTORY ★'
+              : 'STANDBY'}
+          </span>
         </div>
       </header>
 
@@ -318,8 +479,18 @@ export default function PlayPage() {
         {/* HUD */}
         <div className={styles.hud}>
           <div className={styles.hudCell}>
-            <div className={styles.hudLabel}>SCORE</div>
+            <div className={styles.hudLabel}>
+              SCORE
+              {stats.mode === 'twoPlayer' && (
+                <span className={`${styles.playerBadge} ${stats.currentPlayer === 1 ? styles.p1Badge : styles.p2Badge}`}>
+                  P{stats.currentPlayer}
+                </span>
+              )}
+            </div>
             <div className={styles.hudValue}>{String(stats.score).padStart(6, '0')}</div>
+            {stats.mode === 'twoPlayer' && stats.currentPlayer === 2 && stats.p1Score > 0 && (
+              <div className={styles.hudSub}>P1: {String(stats.p1Score).padStart(6, '0')}</div>
+            )}
           </div>
           <div className={styles.hudCell}>
             <div className={styles.hudLabel}>WAVE</div>
@@ -385,16 +556,35 @@ export default function PlayPage() {
                     <div className={styles.instructions}>
                       <p>← → MOVE  ·  SPACE FIRE</p>
                       <p>SURVIVE 30 WAVES · DEFEAT 6 BOSSES</p>
-                      <p>COLLECT XNOUN POWER-UPS</p>
+                      <p>COLLECT XNOUN POWER-UPS  ·  M MUTE</p>
                     </div>
                     {loadState.failed.length > 0 && (
                       <div className={styles.warn}>
                         ! {loadState.failed.length} ASSET(S) USING PLACEHOLDER
                       </div>
                     )}
-                    <button className={styles.startBtn} onClick={startGame}>
-                      ▶ INSERT COIN
-                    </button>
+
+                    <div className={styles.modeButtons}>
+                      <button className={styles.startBtn} onClick={() => startGame('single')}>
+                        ▶ 1 PLAYER
+                      </button>
+                      <button
+                        className={`${styles.startBtn} ${connectedPads < 2 ? styles.startBtnDim : ''}`}
+                        onClick={() => startGame('twoPlayer')}
+                        title={connectedPads < 2 ? '2 controllers recommended (keyboard still works)' : ''}
+                      >
+                        ▶ 2 PLAYER · TAKE TURNS
+                      </button>
+                    </div>
+
+                    <div className={styles.padStatus}>
+                      {connectedPads === 0
+                        ? 'NO CONTROLLERS · KEYBOARD ONLY'
+                        : connectedPads === 1
+                        ? '1 CONTROLLER DETECTED'
+                        : `${connectedPads} CONTROLLERS DETECTED`}
+                    </div>
+
                     <Link href="/characters" className={styles.charactersLink}>
                       ? CHARACTERS
                     </Link>
@@ -406,7 +596,7 @@ export default function PlayPage() {
 
             {/* Demo mode banner overlay — runs during attract-mode auto-play */}
             {running && demoActive && (
-              <div className={styles.demoOverlay} onClick={startGame}>
+              <div className={styles.demoOverlay} onClick={() => startGame()}>
                 <div className={styles.demoBanner}>
                   <div className={styles.demoLabel}>★ DEMO MODE ★</div>
                   <div className={styles.demoCta}>CLICK ANYWHERE OR PRESS ENTER TO PLAY</div>
@@ -429,7 +619,7 @@ export default function PlayPage() {
                 <div className={styles.subtitle}>
                   WAVE {stats.wave}/30 · SHIP LOST · NGMI
                 </div>
-                <button className={styles.startBtn} onClick={startGame}>
+                <button className={styles.startBtn} onClick={() => startGame()}>
                   ▶ PLAY AGAIN
                 </button>
                 <div className={styles.footnote}>(R or ENTER also restarts)</div>
@@ -443,7 +633,7 @@ export default function PlayPage() {
                 <div className={styles.subtitle}>
                   30 WAVES CLEARED
                 </div>
-                <button className={styles.startBtn} onClick={startGame}>
+                <button className={styles.startBtn} onClick={() => startGame()}>
                   ▶ PLAY AGAIN
                 </button>
               </div>
@@ -459,10 +649,56 @@ export default function PlayPage() {
                 <div className={styles.trueEndingMsg}>
                   YOU HAVE TRANSCENDED THE ARCADE
                 </div>
-                <button className={styles.startBtn} onClick={startGame}>
+                <button className={styles.startBtn} onClick={() => startGame()}>
                   ▶ PLAY AGAIN
                 </button>
                 <div className={styles.footnote}>★ MINTFACE.ART · THE LINE NZ ★</div>
+              </div>
+            )}
+
+            {/* Hot-seat handoff: P1 just died, P2 takes over */}
+            {running && !demoActive && phase === 'p2-ready' && (
+              <div className={styles.overlay}>
+                <div className={styles.handoffTitle}>PLAYER 1 · GAME OVER</div>
+                <div className={styles.handoffScore}>
+                  P1 · {String(stats.p1Score).padStart(6, '0')} · WAVE {stats.p1Wave}
+                </div>
+                <div className={styles.handoffBig}>PLAYER 2</div>
+                <div className={styles.handoffPrompt}>PRESS ANY BUTTON TO START</div>
+                <button className={styles.startBtn} onClick={startNextPlayer}>
+                  ▶ PLAYER 2 START
+                </button>
+                <div className={styles.footnote}>(ENTER · R · ANY GAMEPAD BUTTON)</div>
+              </div>
+            )}
+
+            {/* Match comparison: both players done */}
+            {running && !demoActive && phase === 'match-over' && (
+              <div className={styles.overlay}>
+                <div className={styles.matchTitle}>★ MATCH OVER ★</div>
+                <div className={styles.scoreBoard}>
+                  <div className={`${styles.scoreEntry} ${stats.p1Score > stats.p2Score ? styles.scoreWinner : ''}`}>
+                    <div className={styles.scoreLabel}>PLAYER 1</div>
+                    <div className={styles.scoreValue}>{String(stats.p1Score).padStart(6, '0')}</div>
+                    <div className={styles.scoreSub}>WAVE {stats.p1Wave}</div>
+                  </div>
+                  <div className={styles.scoreVs}>VS</div>
+                  <div className={`${styles.scoreEntry} ${stats.p2Score > stats.p1Score ? styles.scoreWinner : ''}`}>
+                    <div className={styles.scoreLabel}>PLAYER 2</div>
+                    <div className={styles.scoreValue}>{String(stats.p2Score).padStart(6, '0')}</div>
+                    <div className={styles.scoreSub}>WAVE {stats.p2Wave}</div>
+                  </div>
+                </div>
+                <div className={styles.matchResult}>
+                  {stats.p1Score === stats.p2Score
+                    ? 'TIE GAME'
+                    : stats.p1Score > stats.p2Score
+                    ? '★ PLAYER 1 WINS ★'
+                    : '★ PLAYER 2 WINS ★'}
+                </div>
+                <button className={styles.startBtn} onClick={() => startGame()}>
+                  ▶ PLAY AGAIN
+                </button>
               </div>
             )}
           </div>
