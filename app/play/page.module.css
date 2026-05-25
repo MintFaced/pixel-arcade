@@ -759,11 +759,12 @@
 /* ============================================================
  * Rotation wrapper — applied when ?rotate=90/180/270 is in URL.
  *
- * For 90° and 270° rotations, the content needs to be sized to the
- * viewport's OTHER dimension (since after rotation, what was content-width
- * becomes content-height on screen). We size the inner container to
- * 100vh × 100vw and rotate from its center, then translate so it lands
- * back inside the visible viewport.
+ * Math: rotate around top-left, then translate in SCREEN space to bring
+ * the rotated content back into the visible viewport.
+ *
+ * CSS transforms compose right-to-left: in `translate(X) rotate(Y)`,
+ * rotate happens first, then translate moves the rotated result.
+ * So we put `translate` LEFT in the chain to move in screen space.
  * ============================================================ */
 .rotateWrap {
   position: fixed;
@@ -771,25 +772,28 @@
   overflow: hidden;
   background: #000;
 }
-/* 90° clockwise — for a cabinet monitor physically rotated -90° (anti-clockwise),
-   or for previewing the vertical game on a landscape laptop. */
+/* 90° clockwise: rotated content extends DOWN and to the LEFT off-screen.
+   Translate RIGHT by viewport width to bring back into view. */
 .rotateWrap[data-rotate="90"] {
   width: 100vh;
   height: 100vw;
   transform-origin: top left;
-  transform: rotate(90deg) translateY(-100vh);
+  transform: translateX(100vw) rotate(90deg);
 }
+/* 180°: rotated content is off the bottom-right. Translate down + right. */
 .rotateWrap[data-rotate="180"] {
   width: 100vw;
   height: 100vh;
-  transform-origin: center;
-  transform: rotate(180deg);
+  transform-origin: top left;
+  transform: translate(100vw, 100vh) rotate(180deg);
 }
+/* 270° clockwise (= -90°): rotated content extends UP and to the RIGHT off-screen.
+   Translate DOWN by viewport height to bring back into view. */
 .rotateWrap[data-rotate="270"] {
   width: 100vh;
   height: 100vw;
   transform-origin: top left;
-  transform: rotate(-90deg) translateX(-100vw);
+  transform: translateY(100vh) rotate(-90deg);
 }
 /* Touch-style inputs may also need their coordinates mapped — but the
    keyboard + gamepad inputs aren't affected by visual rotation. Touch on a
