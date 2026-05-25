@@ -755,3 +755,43 @@
   0%, 100% { opacity: 0.85; }
   50%      { opacity: 1; }
 }
+
+/* ============================================================
+ * Rotation wrapper — applied when ?rotate=90/180/270 is in URL.
+ *
+ * For 90° and 270° rotations, the content needs to be sized to the
+ * viewport's OTHER dimension (since after rotation, what was content-width
+ * becomes content-height on screen). We size the inner container to
+ * 100vh × 100vw and rotate from its center, then translate so it lands
+ * back inside the visible viewport.
+ * ============================================================ */
+.rotateWrap {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+}
+/* 90° clockwise — for a cabinet monitor physically rotated -90° (anti-clockwise),
+   or for previewing the vertical game on a landscape laptop. */
+.rotateWrap[data-rotate="90"] {
+  width: 100vh;
+  height: 100vw;
+  transform-origin: top left;
+  transform: rotate(90deg) translateY(-100vh);
+}
+.rotateWrap[data-rotate="180"] {
+  width: 100vw;
+  height: 100vh;
+  transform-origin: center;
+  transform: rotate(180deg);
+}
+.rotateWrap[data-rotate="270"] {
+  width: 100vh;
+  height: 100vw;
+  transform-origin: top left;
+  transform: rotate(-90deg) translateX(-100vw);
+}
+/* Touch-style inputs may also need their coordinates mapped — but the
+   keyboard + gamepad inputs aren't affected by visual rotation. Touch on a
+   rotated cabinet wouldn't make sense (cabinet uses physical buttons), so
+   we ignore the touch coordinate issue. */

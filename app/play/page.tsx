@@ -64,6 +64,27 @@ export default function PlayPage() {
     setIsMuted(getAudio().isMuted());
   }, []);
 
+  /**
+   * Rotation override — for cabinets with vertical-mounted monitors where
+   * the OS-level display rotation isn't being used, or for previewing the
+   * cabinet view on a normal landscape laptop.
+   *
+   * Usage: append ?rotate=90 (or 180, 270, or -90) to the URL.
+   * Read once on mount — changing it requires a full reload.
+   */
+  const [rotation, setRotation] = useState<0 | 90 | 180 | 270>(0);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = new URLSearchParams(window.location.search).get('rotate');
+    if (!raw) return;
+    const n = parseInt(raw, 10);
+    // Accept 90, 180, 270, or -90 (treat -90 as 270)
+    const normalized = ((n % 360) + 360) % 360;
+    if (normalized === 90 || normalized === 180 || normalized === 270) {
+      setRotation(normalized);
+    }
+  }, []);
+
   // === Asset loading ===
   useEffect(() => {
     let cancelled = false;
@@ -442,7 +463,10 @@ export default function PlayPage() {
   const loadPct = loadState.total > 0 ? Math.round((loadState.loaded / loadState.total) * 100) : 0;
 
   return (
-    <>
+    <div
+      className={rotation !== 0 ? styles.rotateWrap : undefined}
+      data-rotate={rotation || undefined}
+    >
       <header className={styles.marquee}>
         <div className={styles.marqueeLeft}>
           <Link href="/">★ PIXELARCADE.ART</Link>
@@ -713,6 +737,6 @@ export default function PlayPage() {
           <span>R / ENTER · RESTART</span>
         </div>
       </main>
-    </>
+    </div>
   );
 }
