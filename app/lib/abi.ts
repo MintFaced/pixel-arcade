@@ -54,6 +54,35 @@ export const pixelArcadeAbi = [
     stateMutability: 'view',
     type: 'function',
   },
+  // === PHYSICAL CLAIM ===
+  {
+    inputs: [{ internalType: 'uint256[]', name: 'tokenIds', type: 'uint256[]' }],
+    name: 'previewClaimCost',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256[]', name: 'tokenIds', type: 'uint256[]' }],
+    name: 'claimPhysical',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    name: 'physicalClaimed',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    name: 'wildpixelCompleted',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
   // === EVENTS (for indexing post-mint) ===
   {
     anonymous: false,
@@ -62,6 +91,16 @@ export const pixelArcadeAbi = [
       { indexed: true, internalType: 'address', name: 'collector', type: 'address' },
     ],
     name: 'Minted',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'tokenId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'claimer', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amountPaid', type: 'uint256' },
+    ],
+    name: 'PhysicalClaimed',
     type: 'event',
   },
   // === CUSTOM ERRORS (so viem can decode reverts into readable names) ===
@@ -73,6 +112,11 @@ export const pixelArcadeAbi = [
   { inputs: [], name: 'BadSignature', type: 'error' },
   { inputs: [], name: 'BadTotalPrice', type: 'error' },
   { inputs: [], name: 'NotSeeded', type: 'error' },
+  // === Claim-related errors ===
+  { inputs: [], name: 'AlreadyClaimed', type: 'error' },
+  { inputs: [], name: 'EmptyClaim', type: 'error' },
+  { inputs: [], name: 'NotTokenOwner', type: 'error' },
+  { inputs: [], name: 'WildpixelNotCompleted', type: 'error' },
 ] as const;
 
 /**
