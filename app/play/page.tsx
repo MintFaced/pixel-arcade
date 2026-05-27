@@ -317,6 +317,34 @@ export default function PlayPage() {
         p === 'match-over' || p === 'true-victory' || p === 'victory' ||
         p === 'p2-ready'
       );
+
+      // ==============================================================
+      // Demo cancel via any gamepad button
+      //
+      // When attract-mode demo is running, any face button / start / select
+      // press should cancel the demo and start a real game. Movement sticks
+      // and shoulder buttons are NOT counted as cancel — only the buttons
+      // a visitor would deliberately press to start playing.
+      // ==============================================================
+      if (engine.isDemoMode()) {
+        const pads = navigator.getGamepads?.() ?? [];
+        for (let i = 0; i < pads.length; i++) {
+          const pad = pads[i];
+          if (!pad) continue;
+          // Check face buttons (0-3), select (8), start (9)
+          for (const b of [0, 1, 2, 3, 8, 9]) {
+            const key = `${i}:demo:${b}`;
+            const pressed = pad.buttons[b]?.pressed ?? false;
+            if (pressed && !menuButtonWasDown.get(key)) {
+              menuButtonWasDown.set(key, true);
+              startGameRef.current?.('single');
+              break;
+            }
+            if (!pressed) menuButtonWasDown.set(key, false);
+          }
+        }
+      }
+
       if (onMenu && !engine.isDemoMode()) {
         const pads = navigator.getGamepads?.() ?? [];
         for (let i = 0; i < pads.length; i++) {
@@ -435,16 +463,43 @@ export default function PlayPage() {
     }
   }, []);
 
-  // Kick off attract loop once assets are loaded and we're idle on pre-game
+  // Kick off attract loop once assets are loaded and we're idle on pre-game,
+  // OR after a game ends (game-over / victory / match-over). After ~8 seconds
+  // on a game-over screen, the demo kicks in — preventing the cabinet from
+  // sitting on a GAME OVER screen forever after a visitor walks away.
   useEffect(() => {
     if (!loadState.done) return;
-    if (running && !demoActive) return; // playing real game
     if (demoActive) return; // demo already running; its stop callback will retrigger
+    // Game just ended — schedule demo with a longer delay so visitor sees their score
+    const isPostGame = running && (
+      phase === 'game-over' || phase === 'match-over' ||
+      phase === 'victory' || phase === 'true-victory'
+    );
+    if (isPostGame) {
+      // Cancel any existing timer, schedule a longer one (8s instead of 5s)
+      if (demoIdleTimerRef.current) clearTimeout(demoIdleTimerRef.current);
+      demoIdleTimerRef.current = setTimeout(() => {
+        // Tear down the dead game first
+        if (engineRef.current) engineRef.current.stop();
+        setRunning(false);
+        setPhase('pre-game');
+        // startDemo() will be scheduled by the next render's effect run
+      }, 8000);
+      return () => {
+        if (demoIdleTimerRef.current) {
+          clearTimeout(demoIdleTimerRef.current);
+          demoIdleTimerRef.current = null;
+        }
+      };
+    }
+    // Active gameplay — don't schedule demo
+    if (running) return;
+    // Pre-game idle — schedule demo after 5s
     scheduleAttractTimer();
     return () => {
       cancelAttractTimer();
     };
-  }, [loadState.done, running, demoActive, scheduleAttractTimer, cancelAttractTimer]);
+  }, [loadState.done, running, demoActive, phase, scheduleAttractTimer, cancelAttractTimer]);
 
   // After demo ends, schedule the next attract cycle
   useEffect(() => {
