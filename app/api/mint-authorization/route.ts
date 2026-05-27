@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthedAddress } from '../../lib/auth';
-import { getHold, nextMintNonce } from '../../lib/redis';
-import { lookupTier } from '../../lib/tier';
-import { buildSignedMintAuthorization } from '../../lib/signing';
+import { getHold } from '../../lib/redis';
+import { buildSignedMintAuthorization, MINT_PRICE_WEI, generateNonce } from '../../lib/signing';
 import { markMinted } from '../../lib/pool-state';
 import type { Address } from 'viem';
 
@@ -10,12 +9,13 @@ import type { Address } from 'viem';
  * POST /api/mint-authorization
  *
  * Auth required. Signs an EIP-712 MintAuthorization for the given tokens.
- * Frontend submits this to the contract along with payment.
+ * Frontend submits this to the contract's batchMint() along with payment.
  *
  * Validates:
  *   - User is authenticated
  *   - All tokenIds are currently held (and locked) by this user
- *   - Tokens haven't already been authorized (nonce-protected)
+ *
+ * Pricing: flat 0.05 ETH × tokenIds.length (matches contract MINT_PRICE).
  *
  * Marks the tokens as minted optimistically. If the user fails to submit the
  * tx within the deadline, the tokens stay in the minted set — they'd need
@@ -31,13 +31,13 @@ interface RequestBody {
 }
 
 const DEADLINE_SECONDS = 10 * 60;  // 10 min to submit the tx
+const MAX_BATCH = 5;               // matches contract MAX_BATCH constant
 
 export async function POST(req: NextRequest) {
   const address = await getAuthedAddress(req);
   if (!address) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
-
   let body: RequestBody;
   try {
     body = (await req.json()) as RequestBody;
@@ -47,10 +47,15 @@ export async function POST(req: NextRequest) {
   if (!Array.isArray(body.tokenIds) || body.tokenIds.length === 0) {
     return NextResponse.json({ error: 'tokenIds[] required' }, { status: 400 });
   }
+  if (body.tokenIds.length > MAX_BATCH) {
+    return NextResponse.json(
+      { error: `Batch too large (max ${MAX_BATCH})` },
+      { status: 400 }
+    );
+  }
   if (!body.tokenIds.every((x) => typeof x === 'number' && Number.isInteger(x) && x >= 1 && x <= 64)) {
     return NextResponse.json({ error: 'Invalid tokenIds' }, { status: 400 });
   }
-
   try {
     // Verify the user holds (and has locked) every token in the request
     for (const tokenId of body.tokenIds) {
@@ -75,21 +80,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Look up the user's tier and proof for the elevated-tier check
-    const tier = await lookupTier(address);
-
-    // Get a fresh nonce
-    const nonce = await nextMintNonce(address);
+    // Compute totalPrice = 0.05 ETH × number of tokens (must match contract exactly)
+    const totalPrice = MINT_PRICE_WEI * BigInt(body.tokenIds.length);
     const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_SECONDS);
+    const nonce = generateNonce();
 
     // Build and sign
     const signed = await buildSignedMintAuthorization({
-      minter: address as Address,
+      collector: address as Address,
       tokenIds: body.tokenIds.map((n) => BigInt(n)),
-      tier: tier.tierValue,
-      merkleProof: tier.proof,
-      nonce,
+      totalPrice,
       deadline,
+      nonce,
     });
 
     // Optimistically mark tokens as minted so they leave the available pool.
