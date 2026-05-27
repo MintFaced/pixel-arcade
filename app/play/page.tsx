@@ -303,7 +303,7 @@ export default function PlayPage() {
       // We read raw gamepad button state for any pad (not just the active
       // player) so that picking up either controller works.
       //
-      //   Face buttons (A/B/X/Y → idx 0-3) → single-player
+      //   Face buttons (A/B/X/Y → idx 0-3) → single-player (or startNextPlayer if p2-ready)
       //   Back / Select (idx 8)            → two-player hot-seat
       //   Start (idx 9)                    → single-player (handled above)
       //
@@ -314,31 +314,39 @@ export default function PlayPage() {
       const p = phaseRef.current;
       const onMenu = (
         p === 'pre-game' || p === 'game-over' ||
-        p === 'match-over' || p === 'true-victory' || p === 'victory'
+        p === 'match-over' || p === 'true-victory' || p === 'victory' ||
+        p === 'p2-ready'
       );
       if (onMenu && !engine.isDemoMode()) {
         const pads = navigator.getGamepads?.() ?? [];
         for (let i = 0; i < pads.length; i++) {
           const pad = pads[i];
           if (!pad) continue;
-          // Face buttons 0-3 → single-player
+          // Face buttons 0-3 → single-player (or hand-off to P2 if waiting)
           for (let b = 0; b < 4; b++) {
             const key = `${i}:${b}`;
             const pressed = pad.buttons[b]?.pressed ?? false;
             if (pressed && !menuButtonWasDown.get(key)) {
               menuButtonWasDown.set(key, true);
-              startGameRef.current?.('single');
+              if (p === 'p2-ready') {
+                engine.startNextPlayer();
+              } else {
+                startGameRef.current?.('single');
+              }
             }
             if (!pressed) menuButtonWasDown.set(key, false);
           }
           // Button 8 (Back/Select on Xbox layout) → two-player hot-seat
-          const selectKey = `${i}:8`;
-          const selectPressed = pad.buttons[8]?.pressed ?? false;
-          if (selectPressed && !menuButtonWasDown.get(selectKey)) {
-            menuButtonWasDown.set(selectKey, true);
-            startGameRef.current?.('twoPlayer');
+          // (NOT on p2-ready — that screen, face buttons handle the handoff)
+          if (p !== 'p2-ready') {
+            const selectKey = `${i}:8`;
+            const selectPressed = pad.buttons[8]?.pressed ?? false;
+            if (selectPressed && !menuButtonWasDown.get(selectKey)) {
+              menuButtonWasDown.set(selectKey, true);
+              startGameRef.current?.('twoPlayer');
+            }
+            if (!selectPressed) menuButtonWasDown.set(selectKey, false);
           }
-          if (!selectPressed) menuButtonWasDown.set(selectKey, false);
         }
       }
 
@@ -742,6 +750,7 @@ export default function PlayPage() {
                 <div className={styles.handoffPrompt}>PRESS ANY BUTTON TO START</div>
                 <button className={styles.startBtn} onClick={startNextPlayer}>
                   ▶ PLAYER 2 START
+                  <span className={styles.btnHint}>PRESS ANY BUTTON</span>
                 </button>
                 <div className={styles.footnote}>(ENTER · R · ANY GAMEPAD BUTTON)</div>
               </div>
