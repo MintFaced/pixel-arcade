@@ -40,7 +40,6 @@ export default function PlayPage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const assetsRef = useRef<AssetBundle | null>(null);
-
   const [loadState, setLoadState] = useState<LoadState>({ loaded: 0, total: 0, current: '', done: false, failed: [] });
   const [hasGameOverImage, setHasGameOverImage] = useState(false);
   const [stats, setStats] = useState<GameStats>({
@@ -138,6 +137,7 @@ export default function PlayPage() {
       }
       engine.setInput(input);
     };
+
     const onKeyDown = (e: KeyboardEvent) => {
       // First-interaction audio unlock (browser autoplay policy)
       getAudio().unlock();
@@ -191,6 +191,7 @@ export default function PlayPage() {
 
     let touchX: number | null = null;
     let touchActive = false;
+
     const onStart = (e: TouchEvent) => {
       // First-interaction audio unlock (mobile autoplay policy)
       getAudio().unlock();
@@ -236,15 +237,17 @@ export default function PlayPage() {
    * Separate requestAnimationFrame loop reads the active player's gamepad:
    *   - Sends movement+fire to engine.setGamepadInput (OR-merges with keyboard)
    *   - Detects start-press for handoff (p2-ready) and post-game restart
+   *   - Detects face-button and select press on pre-game/menu screens
    *   - Updates connection count for the controller-detection UI badge
    *
    * Active controller index: 0 for P1 / single, 1 for P2 in hot-seat mode.
    * Each player has their own physical controller for the whole match.
    */
   const [connectedPads, setConnectedPads] = useState(0);
+
   /** Refs let the rAF loop see latest phase + callbacks without recreating itself */
   const phaseRef = useRef<GamePhase>('pre-game');
-  const startGameRef = useRef<(() => void) | null>(null);
+  const startGameRef = useRef<((mode?: 'single' | 'twoPlayer') => void) | null>(null);
 
   // Keep phaseRef in sync with state
   useEffect(() => {
@@ -255,7 +258,9 @@ export default function PlayPage() {
     if (!loadState.done) return;
     let rafId: number | null = null;
     let lastConnectedCheck = 0;
-
+    // Edge-trigger tracking for menu-buttons. Maps "padIdx:btnIdx" → was-down.
+    // Used so we only fire startGame once per press, not while held.
+    const menuButtonWasDown = new Map<string, boolean>();
     const tick = () => {
       const engine = engineRef.current;
       if (!engine) {
@@ -268,19 +273,16 @@ export default function PlayPage() {
         setConnectedPads(gamepadCount());
         lastConnectedCheck = now;
       }
-
       // Active pad index based on whose turn it is
       const s = engine.getStats();
       const padIndex = (s.mode === 'twoPlayer' && s.currentPlayer === 2) ? 1 : 0;
       const snap = readGamepad(padIndex);
-
       // Send held-button state to engine (OR-merged with keyboard)
       engine.setGamepadInput({
         left: snap.left,
         right: snap.right,
         fire: snap.fire,
       });
-
       // Edge-triggered start press handles phase transitions
       if (snap.startPressed) {
         const p = phaseRef.current;
@@ -290,7 +292,53 @@ export default function PlayPage() {
           p === 'pre-game' || p === 'game-over' ||
           p === 'match-over' || p === 'true-victory' || p === 'victory'
         ) {
-          startGameRef.current?.();
+          startGameRef.current?.('single');
+        }
+      }
+
+      // ==============================================================
+      // Menu navigation via raw gamepad — only on menu/idle screens.
+      //
+      // The cabinet visitor needs to start the game without a keyboard.
+      // We read raw gamepad button state for any pad (not just the active
+      // player) so that picking up either controller works.
+      //
+      //   Face buttons (A/B/X/Y → idx 0-3) → single-player
+      //   Back / Select (idx 8)            → two-player hot-seat
+      //   Start (idx 9)                    → single-player (handled above)
+      //
+      // Edge-triggered: only fires on press, not while held.
+      // Only active on pre-game / post-game / menu screens — never during
+      // active gameplay (where face buttons should be FIRE, not start).
+      // ==============================================================
+      const p = phaseRef.current;
+      const onMenu = (
+        p === 'pre-game' || p === 'game-over' ||
+        p === 'match-over' || p === 'true-victory' || p === 'victory'
+      );
+      if (onMenu && !engine.isDemoMode()) {
+        const pads = navigator.getGamepads?.() ?? [];
+        for (let i = 0; i < pads.length; i++) {
+          const pad = pads[i];
+          if (!pad) continue;
+          // Face buttons 0-3 → single-player
+          for (let b = 0; b < 4; b++) {
+            const key = `${i}:${b}`;
+            const pressed = pad.buttons[b]?.pressed ?? false;
+            if (pressed && !menuButtonWasDown.get(key)) {
+              menuButtonWasDown.set(key, true);
+              startGameRef.current?.('single');
+            }
+            if (!pressed) menuButtonWasDown.set(key, false);
+          }
+          // Button 8 (Back/Select on Xbox layout) → two-player hot-seat
+          const selectKey = `${i}:8`;
+          const selectPressed = pad.buttons[8]?.pressed ?? false;
+          if (selectPressed && !menuButtonWasDown.get(selectKey)) {
+            menuButtonWasDown.set(selectKey, true);
+            startGameRef.current?.('twoPlayer');
+          }
+          if (!selectPressed) menuButtonWasDown.set(selectKey, false);
         }
       }
 
@@ -451,7 +499,7 @@ export default function PlayPage() {
 
   // Keep ref in sync so the gamepad polling loop can call startGame
   useEffect(() => {
-    startGameRef.current = () => startGame();
+    startGameRef.current = (mode) => startGame(mode);
   }, [startGame]);
 
   /** Hot-seat handoff handler — wired to buttons and gamepad start */
@@ -588,10 +636,10 @@ export default function PlayPage() {
                         ! {loadState.failed.length} ASSET(S) USING PLACEHOLDER
                       </div>
                     )}
-
                     <div className={styles.modeButtons}>
                       <button className={styles.startBtn} onClick={() => startGame('single')}>
                         ▶ 1 PLAYER
+                        <span className={styles.btnHint}>PRESS ANY BUTTON</span>
                       </button>
                       <button
                         className={`${styles.startBtn} ${connectedPads < 2 ? styles.startBtnDim : ''}`}
@@ -599,9 +647,9 @@ export default function PlayPage() {
                         title={connectedPads < 2 ? '2 controllers recommended (keyboard still works)' : ''}
                       >
                         ▶ 2 PLAYER · TAKE TURNS
+                        <span className={styles.btnHint}>PRESS SELECT / BACK</span>
                       </button>
                     </div>
-
                     <div className={styles.padStatus}>
                       {connectedPads === 0
                         ? 'NO CONTROLLERS · KEYBOARD ONLY'
@@ -609,7 +657,6 @@ export default function PlayPage() {
                         ? '1 CONTROLLER DETECTED'
                         : `${connectedPads} CONTROLLERS DETECTED`}
                     </div>
-
                     <Link href="/characters" className={styles.charactersLink}>
                       ? CHARACTERS
                     </Link>
@@ -646,6 +693,7 @@ export default function PlayPage() {
                 </div>
                 <button className={styles.startBtn} onClick={() => startGame()}>
                   ▶ PLAY AGAIN
+                  <span className={styles.btnHint}>PRESS ANY BUTTON</span>
                 </button>
                 <div className={styles.footnote}>(R or ENTER also restarts)</div>
               </div>
@@ -660,6 +708,7 @@ export default function PlayPage() {
                 </div>
                 <button className={styles.startBtn} onClick={() => startGame()}>
                   ▶ PLAY AGAIN
+                  <span className={styles.btnHint}>PRESS ANY BUTTON</span>
                 </button>
               </div>
             )}
@@ -676,6 +725,7 @@ export default function PlayPage() {
                 </div>
                 <button className={styles.startBtn} onClick={() => startGame()}>
                   ▶ PLAY AGAIN
+                  <span className={styles.btnHint}>PRESS ANY BUTTON</span>
                 </button>
                 <div className={styles.footnote}>★ MINTFACE.ART · THE LINE NZ ★</div>
               </div>
@@ -723,6 +773,7 @@ export default function PlayPage() {
                 </div>
                 <button className={styles.startBtn} onClick={() => startGame()}>
                   ▶ PLAY AGAIN
+                  <span className={styles.btnHint}>PRESS ANY BUTTON</span>
                 </button>
               </div>
             )}

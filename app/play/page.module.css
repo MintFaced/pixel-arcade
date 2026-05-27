@@ -2,7 +2,6 @@
    /play — PixelArcade: SWARM
    CRT cabinet chrome wrapping a black canvas playfield.
    ============================================================ */
-
 .marquee {
   position: sticky;
   top: 0;
@@ -68,7 +67,6 @@
   color: var(--neon-yellow);
   text-shadow: 0 0 8px var(--neon-yellow);
 }
-
 .main {
   max-width: 720px;
   margin: 0 auto;
@@ -78,7 +76,6 @@
   align-items: center;
   gap: 20px;
 }
-
 /* ============================================================
    HUD strip above the cabinet
    ============================================================ */
@@ -92,21 +89,18 @@
   border: 2px solid var(--face-pink);
   box-shadow: 0 0 14px rgba(203, 2, 178, 0.4);
 }
-
 .hudCell {
   display: flex;
   flex-direction: column;
   gap: 4px;
   align-items: center;
 }
-
 .hudLabel {
   font-family: var(--font-pixel);
   font-size: 9px;
   color: var(--pixel-dim);
   letter-spacing: 0.15em;
 }
-
 .hudValue {
   font-family: var(--font-display);
   font-size: 22px;
@@ -115,11 +109,9 @@
   letter-spacing: 0.05em;
   min-height: 22px;
 }
-
 .cyan { color: var(--neon-cyan); text-shadow: 0 0 8px var(--neon-cyan); }
 .pink { color: var(--face-pink); text-shadow: 0 0 8px var(--face-pink); }
 .yellow { color: var(--neon-yellow); text-shadow: 0 0 10px var(--neon-yellow); }
-
 /* ============================================================
    The cabinet — CRT chrome around the canvas
    ============================================================ */
@@ -137,7 +129,6 @@
     inset 0 0 24px rgba(0, 0, 0, 0.6);
   position: relative;
 }
-
 /* Top-of-cabinet "marquee" — the arcade machine header */
 .cabinet::before {
   content: '★ SWARM ★';
@@ -154,7 +145,6 @@
   border-radius: 6px;
   box-shadow: 0 0 12px var(--face-pink);
 }
-
 /* Coin slot lip at bottom */
 .cabinet::after {
   content: '◼ ◼ ◼  COIN SLOT  ◼ ◼ ◼';
@@ -170,7 +160,6 @@
   padding: 4px 10px;
   border: 1px solid var(--pixel-dim);
 }
-
 .cabinetInner {
   position: relative;
   width: 100%;
@@ -182,7 +171,6 @@
     inset 0 0 20px rgba(0, 0, 0, 0.9),
     inset 0 0 4px rgba(255, 255, 255, 0.05);
 }
-
 /* Subtle scanline overlay over the canvas */
 .cabinetInner::after {
   content: '';
@@ -198,7 +186,6 @@
   );
   z-index: 3;
 }
-
 /* Slight CRT curvature vignette */
 .cabinetInner::before {
   content: '';
@@ -212,7 +199,6 @@
   );
   z-index: 2;
 }
-
 .canvas {
   display: block;
   width: 100%;
@@ -222,7 +208,6 @@
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
-
 /* ============================================================
    Overlay screens (start, game over)
    ============================================================ */
@@ -245,7 +230,6 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
-
 /* ============================================================
    Demo / attract-mode overlay — non-blocking, click-to-play
    ============================================================ */
@@ -293,7 +277,6 @@
   text-shadow: 0 0 6px var(--neon-cyan);
   letter-spacing: 0.15em;
 }
-
 .title {
   font-family: var(--font-display);
   font-size: 56px;
@@ -305,7 +288,6 @@
   line-height: 1;
   margin: 0;
 }
-
 .gameOverTitle {
   font-family: var(--font-display);
   font-size: 42px;
@@ -317,7 +299,6 @@
   line-height: 1;
   margin: 0;
 }
-
 .finalScore {
   font-family: var(--font-display);
   font-size: 36px;
@@ -325,7 +306,6 @@
   text-shadow: 0 0 12px var(--neon-yellow);
   letter-spacing: 0.08em;
 }
-
 .subtitle {
   font-family: var(--font-pixel);
   font-size: 10px;
@@ -333,7 +313,6 @@
   text-shadow: 0 0 6px var(--neon-cyan);
   letter-spacing: 0.15em;
 }
-
 .instructions {
   font-family: var(--font-pixel);
   font-size: 9px;
@@ -343,7 +322,6 @@
   margin: 8px 0;
 }
 .instructions p { margin: 0; }
-
 .startBtn {
   font-family: var(--font-pixel);
   font-size: 12px;
@@ -357,6 +335,10 @@
   box-shadow: 0 0 12px var(--neon-yellow);
   transition: all 0.12s;
   margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 .startBtn:hover {
   background: var(--neon-yellow);
@@ -365,7 +347,19 @@
   box-shadow: 0 0 24px var(--neon-yellow);
   transform: scale(1.04);
 }
-
+/* Button hint — small text below button label, indicates gamepad mapping.
+ * Lives inside .startBtn as a <span>. Lighter color, smaller, separated. */
+.btnHint {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: rgba(255, 224, 0, 0.55);
+  text-shadow: none;
+  font-weight: normal;
+}
+.startBtn:hover .btnHint {
+  color: rgba(0, 0, 0, 0.65);
+}
 .footnote {
   font-family: var(--font-pixel);
   font-size: 8px;
@@ -373,7 +367,6 @@
   letter-spacing: 0.15em;
   margin-top: 4px;
 }
-
 .charactersLink {
   font-family: var(--font-pixel);
   font-size: 9px;
@@ -392,7 +385,6 @@
   text-shadow: 0 0 8px var(--neon-yellow);
   box-shadow: 0 0 12px rgba(255, 224, 0, 0.4);
 }
-
 /* ============================================================
    Active boosts bar (between HUD and cabinet)
    ============================================================ */
@@ -427,7 +419,6 @@
   text-shadow: 0 0 4px var(--neon-yellow);
   font-size: 8px;
 }
-
 /* ============================================================
    Loading bar (pre-game)
    ============================================================ */
@@ -455,7 +446,6 @@
   text-shadow: 0 0 4px var(--neon-cyan);
   min-height: 12px;
 }
-
 .warn {
   font-family: var(--font-pixel);
   font-size: 8px;
@@ -466,7 +456,6 @@
   padding: 4px 12px;
   border: 1px solid var(--face-pink);
 }
-
 /* ============================================================
    Victory screen (separate from game-over)
    ============================================================ */
@@ -486,7 +475,6 @@
   0%, 100% { transform: scale(1); }
   50%      { transform: scale(1.05); }
 }
-
 /* True ending (after MintFace) — extra-special, gold + halo glow */
 .trueVictoryTitle {
   font-family: var(--font-display);
@@ -505,7 +493,6 @@
   0%, 100% { transform: scale(1) rotate(-1deg); filter: hue-rotate(0deg); }
   50%      { transform: scale(1.06) rotate(1deg);  filter: hue-rotate(-15deg); }
 }
-
 .trueEndingMsg {
   font-family: var(--font-pixel);
   font-size: 10px;
@@ -519,7 +506,6 @@
   0%, 100% { opacity: 0.5; }
   50%      { opacity: 1; }
 }
-
 /* Game-over image (rip-jpeg) */
 .gameOverImage {
   max-width: 70%;
@@ -528,7 +514,6 @@
   image-rendering: crisp-edges;
   filter: drop-shadow(0 0 12px var(--face-pink));
 }
-
 /* ============================================================
    Controls hint below cabinet
    ============================================================ */
@@ -543,7 +528,6 @@
   letter-spacing: 0.1em;
   margin-top: 8px;
 }
-
 /* ============================================================
    Mobile / smaller screens
    ============================================================ */
@@ -565,7 +549,6 @@
   .finalScore { font-size: 28px; }
   .controls { font-size: 8px; }
 }
-
 /* Touch-friendly: on touch devices, controls hint changes */
 @media (hover: none) {
   .controls::before {
@@ -576,11 +559,9 @@
   }
   .controls > * { display: none; }
 }
-
 /* ============================================================
    Two-Player / Hot-Seat mode UI
    ============================================================ */
-
 /* Mode selection buttons on pre-game */
 .modeButtons {
   display: flex;
@@ -594,7 +575,6 @@
 .startBtnDim:hover {
   opacity: 1;
 }
-
 /* Controller-detection status line */
 .padStatus {
   font-family: var(--font-pixel);
@@ -606,7 +586,6 @@
   border: 1px solid rgba(0, 255, 208, 0.4);
   margin: 4px 0;
 }
-
 /* Player badge in HUD during 2P play */
 .playerBadge {
   display: inline-block;
@@ -627,7 +606,6 @@
   color: var(--neon-yellow);
   text-shadow: 0 0 4px var(--neon-yellow);
 }
-
 /* Carried-over P1 score during P2's turn */
 .hudSub {
   font-family: var(--font-pixel);
@@ -636,7 +614,6 @@
   letter-spacing: 0.1em;
   margin-top: 2px;
 }
-
 /* Handoff screen: P1 done, P2 ready */
 .handoffTitle {
   font-family: var(--font-display);
@@ -675,7 +652,6 @@
   letter-spacing: 0.2em;
   margin: 0 0 12px;
 }
-
 /* Match-over comparison screen */
 .matchTitle {
   font-family: var(--font-display);
@@ -755,7 +731,6 @@
   0%, 100% { opacity: 0.85; }
   50%      { opacity: 1; }
 }
-
 /* ============================================================
  * Rotation wrapper — applied when ?rotate=90/180/270 is in URL.
  *
