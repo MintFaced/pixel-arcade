@@ -130,3 +130,43 @@ export const pixelArcadeAbi = [
 export const PIXEL_ARCADE_ADDRESS =
   (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}` | undefined) ??
   '0x55B7619d8985Ca4Ac2Dd0CFffa2131980217bEa6';
+
+/**
+ * Manifold creator core address — the actual ERC-721 contract.
+ * `ownerOf`, `balanceOf`, `tokenURI`, `Transfer` events all live here.
+ * Marketplaces look at this address, not the extension.
+ *
+ * The extension address above handles custom logic; the core handles standard
+ * NFT ownership. Both must be deployed and linked for the system to work.
+ */
+export const MANIFOLD_CORE_ADDRESS =
+  (process.env.NEXT_PUBLIC_MANIFOLD_CORE as `0x${string}` | undefined) ??
+  '0x5f318EafAE56dd5feFa4E470523ceD0387b2b1BA';
+
+/**
+ * Minimal ERC-721 ABI for the Manifold core — only the reads we need for
+ * the my-mints page. Standard ERC-721 interface, no Manifold extensions.
+ */
+export const manifoldCoreAbi = [
+  {
+    inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
+    name: 'ownerOf',
+    outputs: [{ internalType: 'address', name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: 'owner', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
+    name: 'tokenURI',
+    outputs: [{ internalType: 'string', name: '', type: 'string' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const;
