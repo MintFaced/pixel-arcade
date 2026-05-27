@@ -12,7 +12,7 @@ import { decodeErrorResult, type Hex } from 'viem';
 import { svgPath, eraDimensionLabel, type Era } from '../lib/pool';
 import { arrange, buildInlineSvg, extractDominantColors } from '../lib/wildpixel';
 import { loadCatalog, findCatalogEntry } from '../lib/catalog';
-import { pixelArcadeAbi, PIXEL_ARCADE_ADDRESS } from '../lib/abi';
+import { pixelArcadeAbi, manifoldCoreAbi, PIXEL_ARCADE_ADDRESS, MANIFOLD_CORE_ADDRESS } from '../lib/abi';
 import { ConnectedUserBadge } from '../components/UserBadge';
 import { WalletStatus } from '../components/WalletStatus';
 import { ShippingForm } from '../components/ShippingForm';
@@ -153,6 +153,9 @@ export default function MyMintsPage() {
     return () => clearTimeout(t);
   }, [banner]);
 
+  /** Loading state for chain-read */
+  const [isLoadingMints, setIsLoadingMints] = useState(false);
+
   /* Post-mint hand-off */
   useEffect(() => {
     let cancelled = false;
@@ -212,6 +215,172 @@ export default function MyMintsPage() {
       cancelled = true;
     };
   }, []);
+
+  /* ----------------------------------------------------------
+   * Chain-read — load all tokens this wallet owns from the chain
+   *
+   * Strategy:
+   *   1. Query past `Minted(tokenId, collector)` events from the extension,
+   *      filtered to the connected wallet — gives us all tokens this wallet
+   *      ever minted.
+   *   2. For each tokenId, verify current ownership via Manifold core's
+   *      `ownerOf(tokenId)` — catches any tokens that have been transferred
+   *      out (sold on marketplace, sent to another wallet, etc.).
+   *   3. For each verified-owned token, check `physicalClaimed(tokenId)` and
+   *      `wildpixelCompleted(tokenId)` on the extension — sets the right
+   *      status in the UI.
+   *
+   * Merging:
+   *   - If the post-mint sessionStorage payload already populated works, we
+   *     don't duplicate. The chain-read updates statuses (e.g. physical) on
+   *     existing works and adds anything missing.
+   *   - This effect runs whenever address changes — supports wallet switch
+   *     and reconnect.
+   * ---------------------------------------------------------- */
+  useEffect(() => {
+    if (!isConnected || !address || !publicClient) return;
+    let cancelled = false;
+    setIsLoadingMints(true);
+
+    (async () => {
+      try {
+        // Step 1 — get Minted events for this collector
+        //
+        // Note: `fromBlock: 'earliest'` works for Sepolia + recently-deployed
+        // contracts but can time out on mainnet under heavy load. For mainnet,
+        // consider setting fromBlock to the contract's deployment block
+        // (use the block number from the contract creation tx on Etherscan).
+        const { parseAbiItem } = await import('viem');
+        const logs = await publicClient.getLogs({
+          address: PIXEL_ARCADE_ADDRESS,
+          event: parseAbiItem('event Minted(uint256 indexed tokenId, address indexed collector)'),
+          args: { collector: address },
+          fromBlock: 'earliest',
+          toBlock: 'latest',
+        });
+        if (cancelled) return;
+
+        const candidateTokenIds = logs
+          .map((log) => log.args.tokenId)
+          .filter((t): t is bigint => t !== undefined)
+          .map((t) => Number(t));
+
+        if (candidateTokenIds.length === 0) {
+          // No mints from this wallet. If we have nothing from sessionStorage
+          // either, the gallery stays empty (EmptyState renders).
+          setIsLoadingMints(false);
+          return;
+        }
+
+        // Step 2 — verify ownership via the Manifold core. ownerOf reverts
+        // for un-minted tokens (shouldn't happen here, but be safe).
+        const ownershipChecks = await Promise.all(
+          candidateTokenIds.map(async (tokenId) => {
+            try {
+              const owner = (await publicClient.readContract({
+                address: MANIFOLD_CORE_ADDRESS,
+                abi: manifoldCoreAbi,
+                functionName: 'ownerOf',
+                args: [BigInt(tokenId)],
+              })) as `0x${string}`;
+              return owner.toLowerCase() === address.toLowerCase() ? tokenId : null;
+            } catch {
+              return null;
+            }
+          })
+        );
+        if (cancelled) return;
+
+        const ownedTokenIds = ownershipChecks.filter((t): t is number => t !== null);
+
+        if (ownedTokenIds.length === 0) {
+          setIsLoadingMints(false);
+          return;
+        }
+
+        // Step 3 — for each owned token, read claim + wildpixel status
+        const statuses = await Promise.all(
+          ownedTokenIds.map(async (tokenId) => {
+            const [physical, wpCompleted] = await Promise.all([
+              publicClient.readContract({
+                address: PIXEL_ARCADE_ADDRESS,
+                abi: pixelArcadeAbi,
+                functionName: 'physicalClaimed',
+                args: [BigInt(tokenId)],
+              }).catch(() => false) as Promise<boolean>,
+              publicClient.readContract({
+                address: PIXEL_ARCADE_ADDRESS,
+                abi: pixelArcadeAbi,
+                functionName: 'wildpixelCompleted',
+                args: [BigInt(tokenId)],
+              }).catch(() => false) as Promise<boolean>,
+            ]);
+            return { tokenId, physical, wpCompleted };
+          })
+        );
+        if (cancelled) return;
+
+        // Step 4 — build Work objects from catalog
+        const catalog = await loadCatalog();
+        if (cancelled || catalog.length === 0) {
+          setIsLoadingMints(false);
+          return;
+        }
+
+        // Merge with existing works (from sessionStorage handoff)
+        setWorks((prevWorks) => {
+          const byTokenId = new Map<number, Work>();
+          // Start with existing works keyed by tokenId
+          for (const w of prevWorks) {
+            byTokenId.set(w.tokenId, w);
+          }
+
+          // Build / update from chain data
+          let nextId = prevWorks.length + 1;
+          for (const { tokenId, physical, wpCompleted } of statuses) {
+            const existing = byTokenId.get(tokenId);
+            if (existing) {
+              // Already have it from sessionStorage — enrich with chain status
+              byTokenId.set(tokenId, {
+                ...existing,
+                physical,
+                status: existing.wildpixel && !wpCompleted ? 'awaiting-palette' : 'minted',
+              });
+            } else {
+              // New from chain — build full Work from catalog
+              const entry = findCatalogEntry(catalog, tokenId);
+              if (!entry) continue;
+              const isWildpixelEmpty = entry.wildpixel && !wpCompleted;
+              byTokenId.set(tokenId, {
+                id: `c${nextId++}`,
+                tokenId: entry.token_id,
+                trait: entry.wildpixel && !wpCompleted ? null : entry.name,
+                finalTitle: entry.art_title,
+                era: entry.era,
+                year: entry.wildpixel && !wpCompleted ? null : entry.year,
+                grid: [entry.grid.rows, entry.grid.cols],
+                status: isWildpixelEmpty ? 'awaiting-palette' : 'minted',
+                physical,
+                wildpixel: entry.wildpixel,
+              });
+            }
+          }
+
+          // Return as array, sorted by tokenId for stable display
+          return Array.from(byTokenId.values()).sort((a, b) => a.tokenId - b.tokenId);
+        });
+
+        setIsLoadingMints(false);
+      } catch (err) {
+        console.error('[my-mints] Chain read failed:', err);
+        if (!cancelled) setIsLoadingMints(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected, address, publicClient]);
 
   /* ----------------------------------------------------------
    * Derived state
@@ -519,7 +688,7 @@ export default function MyMintsPage() {
 
       <main className={styles.gallery}>
         {works.length === 0 ? (
-          <EmptyState />
+          isLoadingMints ? <LoadingMints /> : <EmptyState />
         ) : (
           filteredWorks.map((work) => (
             <WorkCard
@@ -584,6 +753,21 @@ function EmptyState() {
         Fresh mints appear here automatically.
       </p>
       <Link href="/mint" className={`${styles.coinBtn}`}>▶ START · MINT</Link>
+    </div>
+  );
+}
+
+/* ============================================================
+ * LoadingMints — shown while chain-reading
+ * ============================================================ */
+
+function LoadingMints() {
+  return (
+    <div className={styles.emptyState}>
+      <div className={styles.emptyBig}>▼ READING CHAIN ▼</div>
+      <p className={styles.emptySub}>
+        Loading your mints from the chain<span className={styles.blinkCursor} />
+      </p>
     </div>
   );
 }
