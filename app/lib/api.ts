@@ -35,6 +35,21 @@ export interface LockResult {
   locked: true;
 }
 
+/**
+ * SignedMintAuthorization — matches the deployed contract's MintAuthorization
+ * struct (PixelArcade.sol on Sepolia: 0x55B7619d…).
+ *
+ *   struct MintAuthorization {
+ *     address collector;
+ *     uint256[] tokenIds;
+ *     uint256 totalPrice;
+ *     uint256 deadline;
+ *     bytes32 nonce;
+ *   }
+ *
+ * The frontend passes message+signature into the batchMint() call along with
+ * a tx value equal to message.totalPrice (parsed from string).
+ */
 export interface SignedMintAuthorization {
   domain: {
     name: string;
@@ -45,12 +60,11 @@ export interface SignedMintAuthorization {
   types: Record<string, Array<{ name: string; type: string }>>;
   primaryType: 'MintAuthorization';
   message: {
-    minter: `0x${string}`;
-    tokenIds: string[];  // bigint stringified
-    tier: number;
-    merkleProof: `0x${string}`[];
-    nonce: string;
-    deadline: string;
+    collector: `0x${string}`;
+    tokenIds: string[];      // bigint stringified
+    totalPrice: string;      // bigint wei, stringified
+    deadline: string;        // bigint unix seconds, stringified
+    nonce: `0x${string}`;    // 32-byte hex
   };
   signature: `0x${string}`;
 }

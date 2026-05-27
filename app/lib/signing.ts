@@ -6,50 +6,50 @@ import type { Address } from 'viem';
  *
  * The signature is what Yungwknd's contract verifies before allowing a mint.
  * It proves the backend authorized this specific mint for this specific
- * address with these specific token IDs at this specific tier.
+ * collector for this specific total price.
  *
  * Required env vars:
  *   MINT_SIGNER_PRIVATE_KEY — 0x-prefixed 64-char hex (a fresh EOA, never holds funds)
- *   CONTRACT_ADDRESS        — the deployed PixelArcade contract (Sepolia/mainnet)
+ *   CONTRACT_ADDRESS        — the deployed PixelArcade extension contract
  *   CHAIN_ID                — 11155111 (Sepolia) or 1 (mainnet)
  *
- * STRUCT DEFINITION — must match Yung's contract exactly. If his struct
- * differs (field order, types, names), signatures won't verify on-chain.
- * Currently assumed:
+ * STRUCT — must match the deployed contract exactly. Verified against the
+ * Sepolia ABI at 0x55B7619d8985Ca4Ac2Dd0CFffa2131980217bEa6:
  *
  *   struct MintAuthorization {
- *     address minter;
+ *     address collector;
  *     uint256[] tokenIds;
- *     uint8 tier;            // 0 standard, 1 elevated
- *     bytes32[] merkleProof; // empty if tier == 0
- *     uint256 nonce;
+ *     uint256 totalPrice;
  *     uint256 deadline;
+ *     bytes32 nonce;
  *   }
  *
- * If Yung's struct differs, update MINT_AUTH_TYPES below.
+ * Any deviation (field order, types, names) breaks signature verification.
  */
-
 export const EIP712_DOMAIN_NAME = 'PixelArcade';
 export const EIP712_DOMAIN_VERSION = '1';
 
 export const MINT_AUTH_TYPES = {
   MintAuthorization: [
-    { name: 'minter', type: 'address' },
+    { name: 'collector', type: 'address' },
     { name: 'tokenIds', type: 'uint256[]' },
-    { name: 'tier', type: 'uint8' },
-    { name: 'merkleProof', type: 'bytes32[]' },
-    { name: 'nonce', type: 'uint256' },
+    { name: 'totalPrice', type: 'uint256' },
     { name: 'deadline', type: 'uint256' },
+    { name: 'nonce', type: 'bytes32' },
   ],
 } as const;
 
 export interface MintAuthorizationMessage {
-  minter: Address;
+  /** The wallet that will send the mint tx — must equal msg.sender on-chain */
+  collector: Address;
+  /** Token IDs being minted in this batch (1–MAX_BATCH, contract enforces) */
   tokenIds: bigint[];
-  tier: number;                    // 0 or 1
-  merkleProof: `0x${string}`[];
-  nonce: bigint;
+  /** Exact ETH value (wei) the user must send with batchMint() */
+  totalPrice: bigint;
+  /** Unix timestamp after which the authorization expires */
   deadline: bigint;
+  /** 32-byte random nonce, unique per authorization (contract tracks via usedAuthorizations mapping) */
+  nonce: `0x${string}`;
 }
 
 /** Get the configured signer account from env. Throws if missing or malformed. */
@@ -63,7 +63,7 @@ function getSigner() {
 }
 
 /** Public address of the configured signer. Useful for /api/health and for
- *  confirming what to give Yung for setMintSigner(). */
+ *  confirming what to give Yungwknd for setMintAuthorizer(). */
 export function getSignerAddress(): Address {
   return getSigner().address;
 }
@@ -72,7 +72,7 @@ function getDomain() {
   const contractAddress = process.env.CONTRACT_ADDRESS;
   const chainId = process.env.CHAIN_ID ? parseInt(process.env.CHAIN_ID, 10) : 11155111;
   if (!contractAddress) {
-    throw new Error('CONTRACT_ADDRESS env var missing (set after Yung deploys)');
+    throw new Error('CONTRACT_ADDRESS env var missing (set after Yungwknd deploys)');
   }
   if (!/^0x[0-9a-fA-F]{40}$/.test(contractAddress)) {
     throw new Error('CONTRACT_ADDRESS must be 0x + 40 hex chars');
@@ -104,12 +104,11 @@ export interface SignedMintAuthorization {
   types: typeof MINT_AUTH_TYPES;
   primaryType: 'MintAuthorization';
   message: {
-    minter: Address;
-    tokenIds: string[];    // bigint → string for JSON safety
-    tier: number;
-    merkleProof: `0x${string}`[];
-    nonce: string;
-    deadline: string;
+    collector: Address;
+    tokenIds: string[];     // bigint → string for JSON safety
+    totalPrice: string;     // bigint → string
+    deadline: string;       // bigint → string
+    nonce: `0x${string}`;   // 32-byte hex
   };
   signature: `0x${string}`;
 }
@@ -124,13 +123,23 @@ export async function buildSignedMintAuthorization(
     types: MINT_AUTH_TYPES,
     primaryType: 'MintAuthorization',
     message: {
-      minter: message.minter,
+      collector: message.collector,
       tokenIds: message.tokenIds.map(String),
-      tier: message.tier,
-      merkleProof: message.merkleProof,
-      nonce: message.nonce.toString(),
+      totalPrice: message.totalPrice.toString(),
       deadline: message.deadline.toString(),
+      nonce: message.nonce,
     },
     signature,
   };
+}
+
+/** Mint price per token, in wei (0.05 ETH). Matches contract MINT_PRICE constant. */
+export const MINT_PRICE_WEI = 50_000_000_000_000_000n;  // 0.05 ETH
+
+/** Generate a 32-byte random nonce as 0x-prefixed hex. */
+export function generateNonce(): `0x${string}` {
+  // Use Web Crypto API — available in Edge Runtime + Node 19+
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return ('0x' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')) as `0x${string}`;
 }
