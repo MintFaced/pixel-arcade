@@ -2,17 +2,42 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import {
+  useAccount, useChainId, usePublicClient, useSwitchChain,
+  useWriteContract, useWaitForTransactionReceipt,
+} from 'wagmi';
+import { sepolia } from 'wagmi/chains';
+import { decodeErrorResult, type Hex } from 'viem';
+
 import { svgPath, eraDimensionLabel, type Era } from '../lib/pool';
 import { arrange, buildInlineSvg, extractDominantColors } from '../lib/wildpixel';
 import { loadCatalog, findCatalogEntry } from '../lib/catalog';
+import { pixelArcadeAbi, PIXEL_ARCADE_ADDRESS } from '../lib/abi';
 import { ConnectedUserBadge } from '../components/UserBadge';
 import { WalletStatus } from '../components/WalletStatus';
 import { ShippingForm } from '../components/ShippingForm';
 import styles from './page.module.css';
 
 /* ============================================================
-   Domain types
-   ============================================================ */
+ * /my-mints — collector dashboard.
+ *
+ * Real on-chain claim flow (replaces the prior demo checkout):
+ *   1. User selects works → clicks "CONFIRM ORDER"
+ *   2. Frontend reads `previewClaimCost(tokenIds)` from the contract for the exact price
+ *   3. Frontend calls `claimPhysical(tokenIds, { value: cost })` via wagmi
+ *   4. Waits for receipt
+ *   5. Only AFTER on-chain confirmation, swaps drawer to ShippingForm
+ *   6. ShippingForm sends shipping details to backend + email
+ *
+ * The previous version used a Math.random() tx hash and skipped the on-chain
+ * call entirely — collectors could submit shipping for free. Fixed by
+ * actually requiring the chain to confirm payment first.
+ * ============================================================ */
+
+/* ============================================================
+ * Domain types
+ * ============================================================ */
+
 type WorkStatus = 'minted' | 'awaiting-palette';
 type FilterKey = 'all' | '8-bit' | '16-bit' | '32-bit' | 'wildpixel';
 
@@ -27,8 +52,6 @@ interface Work {
   status: WorkStatus;
   physical: boolean;
   wildpixel: boolean;
-  /** When a wildpixel is locked in this session, we keep the chosen
-   * arrangement here so the gallery can render it inline. */
   completedCells?: string[];
 }
 
@@ -47,10 +70,22 @@ interface WildpixelModalState {
   trait: string;
 }
 
+/** Claim flow state — distinct from drawer open/closed state */
+type ClaimFlow =
+  | { kind: 'idle' }
+  | { kind: 'pricing'; tokenIds: number[] }       // calling previewClaimCost
+  | { kind: 'signing'; tokenIds: number[]; cost: bigint }   // wallet popup open
+  | { kind: 'confirming'; tokenIds: number[]; txHash: Hex } // on-chain pending
+  | { kind: 'paid'; tokenIds: number[]; txHash: Hex }       // tx confirmed, ready for shipping form
+  | { kind: 'error'; message: string; revertName?: string };
+
 /* ============================================================
-   Pricing
-   ============================================================ */
-const PRICES: Record<Era, { painting: number; shipping: number }> = {
+ * Local price hints — DISPLAY ONLY
+ * Real price comes from contract.previewClaimCost(). These values
+ * just power the drawer's running-total preview before checkout.
+ * ============================================================ */
+
+const PRICES_HINT: Record<Era, { painting: number; shipping: number }> = {
   '8-bit':  { painting: 0.25, shipping: 0.25 },
   '16-bit': { painting: 0.50, shipping: 0.25 },
   '32-bit': { painting: 1.00, shipping: 0.25 },
@@ -62,12 +97,27 @@ function eraToClass(era: Era): 'era-8' | 'era-16' | 'era-32' {
   return `era-${era.split('-')[0]}` as 'era-8' | 'era-16' | 'era-32';
 }
 
+/** Decode a custom-error revert into a friendly name. */
+function decodeRevert(data: Hex | undefined): string | null {
+  if (!data) return null;
+  try {
+    const decoded = decodeErrorResult({ abi: pixelArcadeAbi, data });
+    return decoded.errorName;
+  } catch {
+    return null;
+  }
+}
+
 /* ============================================================
-   Main page component
-   ============================================================ */
+ * Main page component
+ * ============================================================ */
+
 export default function MyMintsPage() {
-  /** Works the user "owns" — empty by default in this prototype.
-   * Populated by the post-mint hand-off via sessionStorage. */
+  const { address, isConnected } = useAccount();
+  const chainId = useChainId();
+  const { switchChainAsync } = useSwitchChain();
+  const isOnSepolia = chainId === sepolia.id;
+
   const [works, setWorks] = useState<Work[]>([]);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -75,47 +125,35 @@ export default function MyMintsPage() {
   const [modal, setModal] = useState<WildpixelModalState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [banner, setBanner] = useState<{ count: number; txHash: string } | null>(null);
-  /** After a successful claim, holds the just-paid tokenIds so the drawer
-   *  swaps to the ShippingForm. Cleared once user submits OR closes drawer. */
-  const [paidTokens, setPaidTokens] = useState<{ tokenIds: number[]; txHash: string } | null>(null);
 
-  /* ----------------------------------------------------------
-     ESC closes drawer or modal — nice keyboard UX
-     ---------------------------------------------------------- */
+  /** Claim flow state — drives the drawer's behavior */
+  const [claimFlow, setClaimFlow] = useState<ClaimFlow>({ kind: 'idle' });
+
+  /* ESC handler */
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
-      // Modal has its own handler, but it doesn't hurt to also close drawer
-      // from here; if both were open, this hits drawer first which is fine.
       if (drawerOpen) closeDrawer();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [drawerOpen]);
 
-  /* ----------------------------------------------------------
-     Toast lifecycle
-     ---------------------------------------------------------- */
+  /* Toast lifecycle */
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(t);
   }, [toast]);
 
-  /* ----------------------------------------------------------
-     Post-mint banner lifecycle — auto-fade at 12s
-     ---------------------------------------------------------- */
+  /* Banner lifecycle */
   useEffect(() => {
     if (!banner) return;
     const t = setTimeout(() => setBanner(null), 12000);
     return () => clearTimeout(t);
   }, [banner]);
 
-  /* ----------------------------------------------------------
-     Post-mint hand-off — read sessionStorage on mount, resolve
-     token IDs against the catalog, build Work objects, pre-select
-     for physical claim, open drawer after a beat.
-     ---------------------------------------------------------- */
+  /* Post-mint hand-off */
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -123,7 +161,7 @@ export default function MyMintsPage() {
       try {
         raw = sessionStorage.getItem('pixelarcade_post_mint_claim');
       } catch {
-        return; // sessionStorage unavailable (private mode etc.)
+        return;
       }
       if (!raw) return;
       try {
@@ -145,7 +183,6 @@ export default function MyMintsPage() {
       const newWorks: Work[] = [];
       let nextId = 1;
       const preSelect = new Set<string>();
-
       for (const tokenId of payload.tokenIds) {
         const entry = findCatalogEntry(catalog, tokenId);
         if (!entry) continue;
@@ -162,39 +199,29 @@ export default function MyMintsPage() {
           wildpixel: entry.wildpixel,
         };
         newWorks.push(w);
-        // Pre-select eligible works for physical claim
         if (!w.wildpixel) preSelect.add(w.id);
       }
-
       setWorks(newWorks);
       setSelected(preSelect);
-
-      // Auto-open drawer after a beat, show banner immediately
       setBanner({ count: newWorks.length, txHash: payload.txHash });
       setTimeout(() => {
         if (!cancelled) setDrawerOpen(true);
       }, 800);
     })();
-
     return () => {
       cancelled = true;
     };
   }, []);
 
   /* ----------------------------------------------------------
-     Derived counts for the HUD
-     ---------------------------------------------------------- */
-  const stats = useMemo(() => {
-    return {
-      total: works.length,
-      physical: works.filter((w) => w.physical).length,
-      wildpixel: works.filter((w) => w.wildpixel && w.status === 'awaiting-palette').length,
-    };
-  }, [works]);
+   * Derived state
+   * ---------------------------------------------------------- */
+  const stats = useMemo(() => ({
+    total: works.length,
+    physical: works.filter((w) => w.physical).length,
+    wildpixel: works.filter((w) => w.wildpixel && w.status === 'awaiting-palette').length,
+  }), [works]);
 
-  /* ----------------------------------------------------------
-     Filtered works for gallery
-     ---------------------------------------------------------- */
   const filteredWorks = useMemo(() => {
     if (filter === 'all') return works;
     if (filter === 'wildpixel') return works.filter((w) => w.wildpixel);
@@ -202,13 +229,12 @@ export default function MyMintsPage() {
   }, [works, filter]);
 
   /* ----------------------------------------------------------
-     Selection actions
-     ---------------------------------------------------------- */
+   * Selection actions (unchanged)
+   * ---------------------------------------------------------- */
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   }, []);
@@ -230,37 +256,146 @@ export default function MyMintsPage() {
   }, [works]);
 
   /* ----------------------------------------------------------
-     Checkout — flip selected works to physical, swap drawer to shipping form
-     ---------------------------------------------------------- */
-  const handleCheckout = useCallback(() => {
+   * Real claimPhysical flow
+   *
+   * Note: we call previewClaimCost imperatively via the public client
+   * inside handleCheckout (not via useReadContract), because it's a
+   * one-shot call when the user clicks the button, not a continuous
+   * subscription. Imperative calls keep the React tree clean.
+   * ---------------------------------------------------------- */
+  const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient({ chainId: sepolia.id });
+
+  // Track the pending tx for receipt watching
+  const [pendingTxHash, setPendingTxHash] = useState<Hex | null>(null);
+  const { data: txReceipt, isSuccess: txSuccess, isError: txError, error: txErrorObj } =
+    useWaitForTransactionReceipt({
+      hash: pendingTxHash ?? undefined,
+      chainId: sepolia.id,
+    });
+
+  // Transition the claim flow when tx resolves
+  useEffect(() => {
+    if (txSuccess && txReceipt && claimFlow.kind === 'confirming') {
+      // Mark the works as physical now that payment is confirmed on-chain
+      const claimedIds = new Set(claimFlow.tokenIds);
+      setWorks((prev) =>
+        prev.map((w) => claimedIds.has(w.tokenId) ? { ...w, physical: true } : w)
+      );
+      setSelected(new Set());
+      setClaimFlow({ kind: 'paid', tokenIds: claimFlow.tokenIds, txHash: txReceipt.transactionHash });
+      setToast(`★ PAID ON-CHAIN · ${claimFlow.tokenIds.length} QUEUED · SHIPPING DETAILS BELOW ★`);
+    } else if (txError && claimFlow.kind === 'confirming') {
+      const msg = txErrorObj instanceof Error ? txErrorObj.message : 'Transaction failed';
+      const revertMatch = /reverted with the following reason:\s*(\w+)/i.exec(msg);
+      setClaimFlow({ kind: 'error', message: msg, revertName: revertMatch?.[1] });
+    }
+  }, [txSuccess, txError, txReceipt, txErrorObj, claimFlow]);
+
+  /**
+   * Imperative read of previewClaimCost via a one-off useReadContract call.
+   *
+   * We can't conditionally call a hook, so instead we render a hidden
+   * component when we need the price. Simpler: we use the contract's
+   * built-in pricing rules from the integration guide as a client-side
+   * estimate, then refine via the actual call in the request.
+   *
+   * For the actual claim tx we need an exact value match — so we DO have
+   * to read the contract. Approach: use refetch from a hidden read-hook.
+   */
+  const handleCheckout = useCallback(async () => {
     const selectedWorks = works.filter((w) => selected.has(w.id));
     if (selectedWorks.length === 0) return;
+
+    // Validate wallet + chain
+    if (!isConnected || !address) {
+      setToast('★ CONNECT WALLET FIRST ★');
+      return;
+    }
+    if (!isOnSepolia) {
+      try {
+        await switchChainAsync({ chainId: sepolia.id });
+      } catch {
+        setToast('★ PLEASE SWITCH TO SEPOLIA ★');
+        return;
+      }
+    }
+
     const tokenIds = selectedWorks.map((w) => w.tokenId);
-    setWorks((prev) =>
-      prev.map((w) => (selected.has(w.id) ? { ...w, physical: true } : w))
-    );
-    setSelected(new Set());
-    // Mock tx hash — session 4b: real payment tx hash from useWriteContract
-    const txHash = '0x' + Math.random().toString(16).slice(2, 10) + '…' + Math.random().toString(16).slice(2, 6);
-    setPaidTokens({ tokenIds, txHash });
-    setToast(`★ ORDER CONFIRMED · ${tokenIds.length} QUEUED · SHIPPING DETAILS BELOW ★`);
-  }, [selected, works]);
+    const tokenIdsBig = tokenIds.map((n) => BigInt(n));
+
+    // Step 1 — read previewClaimCost from contract
+    setClaimFlow({ kind: 'pricing', tokenIds });
+
+    let cost: bigint;
+    try {
+      if (!publicClient) {
+        throw new Error('No public client available — wallet not connected to Sepolia');
+      }
+      cost = (await publicClient.readContract({
+        address: PIXEL_ARCADE_ADDRESS,
+        abi: pixelArcadeAbi,
+        functionName: 'previewClaimCost',
+        args: [tokenIdsBig],
+      })) as bigint;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Price lookup failed';
+      // Look for a revert (e.g. WildpixelNotCompleted)
+      const errData = (err as { data?: Hex; cause?: { data?: Hex } })?.data
+        ?? (err as { cause?: { data?: Hex } })?.cause?.data;
+      const revertName = decodeRevert(errData) ?? undefined;
+      setClaimFlow({ kind: 'error', message: msg, revertName });
+      return;
+    }
+
+    // Step 2 — send the claimPhysical tx with the exact value
+    setClaimFlow({ kind: 'signing', tokenIds, cost });
+
+    let txHash: Hex;
+    try {
+      txHash = await writeContractAsync({
+        address: PIXEL_ARCADE_ADDRESS,
+        abi: pixelArcadeAbi,
+        functionName: 'claimPhysical',
+        args: [tokenIdsBig],
+        value: cost,
+        chainId: sepolia.id,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Send failed';
+      if (msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('denied')) {
+        // User rejected — silent return to idle
+        setClaimFlow({ kind: 'idle' });
+      } else {
+        const errData = (err as { data?: Hex; cause?: { data?: Hex } })?.data
+          ?? (err as { cause?: { data?: Hex } })?.cause?.data;
+        const revertName = decodeRevert(errData) ?? undefined;
+        setClaimFlow({ kind: 'error', message: msg, revertName });
+      }
+      return;
+    }
+
+    // Step 3 — wait for receipt (handled by useWaitForTransactionReceipt effect above)
+    setPendingTxHash(txHash);
+    setClaimFlow({ kind: 'confirming', tokenIds, txHash });
+  }, [works, selected, isConnected, address, isOnSepolia, switchChainAsync, writeContractAsync, publicClient]);
 
   /* ----------------------------------------------------------
-     Drawer close — also clears any pending shipping form
-     ---------------------------------------------------------- */
+   * Drawer close — also resets claim flow
+   * ---------------------------------------------------------- */
   const closeDrawer = useCallback(() => {
     setDrawerOpen(false);
-    // Clear paid state on close — if user dismisses without submitting, we
-    // re-prompt next time they open the drawer? No: they've already paid,
-    // they can submit shipping later via a future entry point. For now,
-    // clearing keeps the drawer behavior predictable.
-    setPaidTokens(null);
+    // If user closes mid-flow before payment, reset to idle.
+    // If they've paid (kind:'paid'), the works are already marked physical
+    // and the cleanup just clears the shipping form prompt — user can
+    // submit shipping later via my-mints if we add that path.
+    setClaimFlow({ kind: 'idle' });
+    setPendingTxHash(null);
   }, []);
 
   /* ----------------------------------------------------------
-     Wildpixel modal — open with fresh state
-     ---------------------------------------------------------- */
+   * Wildpixel modal (unchanged)
+   * ---------------------------------------------------------- */
   const openWildpixelModal = useCallback((workId: string) => {
     setModal({
       workId,
@@ -272,14 +407,8 @@ export default function MyMintsPage() {
     });
   }, []);
 
-  const closeWildpixelModal = useCallback(() => {
-    setModal(null);
-  }, []);
+  const closeWildpixelModal = useCallback(() => setModal(null), []);
 
-  /* ----------------------------------------------------------
-     Wildpixel lock — write completed cells onto the Work,
-     promote status from awaiting-palette to minted.
-     ---------------------------------------------------------- */
   const lockWildpixel = useCallback(() => {
     if (!modal) return;
     if (!modal.extracted || modal.trait.trim().length === 0) return;
@@ -299,8 +428,8 @@ export default function MyMintsPage() {
   }, [modal, works, closeWildpixelModal]);
 
   /* ----------------------------------------------------------
-     Render
-     ---------------------------------------------------------- */
+   * Render
+   * ---------------------------------------------------------- */
   return (
     <>
       {banner && (
@@ -412,7 +541,6 @@ export default function MyMintsPage() {
         </div>
       </div>
 
-      {/* Drawer for physical claim */}
       <div
         className={`${styles.drawerBackdrop} ${drawerOpen ? styles.drawerOpen : ''}`}
         onClick={closeDrawer}
@@ -421,13 +549,13 @@ export default function MyMintsPage() {
         open={drawerOpen}
         works={works}
         selected={selected}
-        paidTokens={paidTokens}
+        claimFlow={claimFlow}
         onClose={closeDrawer}
         onRemove={(id) => toggleSelect(id)}
         onCheckout={handleCheckout}
+        onDismissError={() => setClaimFlow({ kind: 'idle' })}
       />
 
-      {/* Wildpixel modal */}
       {modal && (
         <WildpixelModal
           state={modal}
@@ -438,15 +566,15 @@ export default function MyMintsPage() {
         />
       )}
 
-      {/* Toast */}
       {toast && <div className={`${styles.toast} ${styles.toastShow}`}>{toast}</div>}
     </>
   );
 }
 
 /* ============================================================
-   EmptyState — shown when user has no mints (default state)
-   ============================================================ */
+ * EmptyState
+ * ============================================================ */
+
 function EmptyState() {
   return (
     <div className={styles.emptyState}>
@@ -461,20 +589,31 @@ function EmptyState() {
 }
 
 /* ============================================================
-   PostMintBanner — fixed-top celebratory strip
-   ============================================================ */
+ * PostMintBanner
+ * ============================================================ */
+
 function PostMintBanner({
   count, txHash, onClose,
 }: {
   count: number; txHash: string; onClose: () => void;
 }) {
+  const shortHash = txHash.startsWith('0x') && txHash.length > 16
+    ? `${txHash.slice(0, 10)}…${txHash.slice(-8)}`
+    : txHash;
   return (
     <div className={styles.postMintBanner}>
       <div className={styles.pmbInner}>
         <span className={styles.pmbStar}>★</span>
         <span className={styles.pmbText}>
           <strong>FRESH MINT</strong> · {count} WORK{count !== 1 && 'S'} ADDED TO YOUR WALLET ·{' '}
-          TX <span className={styles.pmbHash}>{txHash}</span> ·{' '}
+          TX <a
+            href={`https://sepolia.etherscan.io/tx/${txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.pmbHash}
+          >
+            {shortHash}
+          </a> ·{' '}
           <strong>CLAIM YOUR PHYSICALS BELOW</strong>
         </span>
         <span className={styles.pmbStar}>★</span>
@@ -485,8 +624,9 @@ function PostMintBanner({
 }
 
 /* ============================================================
-   WorkCard — one cabinet in the gallery
-   ============================================================ */
+ * WorkCard (unchanged)
+ * ============================================================ */
+
 function WorkCard({
   work, selected, onToggleSelect, onOpenWildpixel,
 }: {
@@ -500,7 +640,6 @@ function WorkCard({
 
   let visual: React.ReactNode;
   if (work.wildpixel && work.completedCells) {
-    // Locally-completed wildpixel — render as inline animated SVG
     const [rows, cols] = work.grid;
     const svgHtml = buildInlineSvg(work.completedCells, rows, cols);
     visual = (
@@ -510,7 +649,6 @@ function WorkCard({
       />
     );
   } else {
-    // Standard work — load the static SVG file
     // eslint-disable-next-line @next/next/no-img-element
     visual = (
       <img
@@ -521,10 +659,6 @@ function WorkCard({
     );
   }
 
-  // Trait display:
-  //   - Wildpixel awaiting palette → "★ WILD PIXEL ★" in yellow (the collector's blank canvas)
-  //   - Has a trait set → show it normally
-  //   - Otherwise (rare) → "★ NOT YET SET ★" in magenta
   let traitDisplay: React.ReactNode;
   if (isWildpixelEmpty) {
     traitDisplay = <div className={styles.workTrait}>★ WILD PIXEL ★</div>;
@@ -544,7 +678,6 @@ function WorkCard({
   }
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // If the user clicked the select button, let its own handler fire and stop here
     const target = e.target as HTMLElement;
     if (target.closest(`.${styles.workSelect}`)) return;
     if (isWildpixelEmpty) onOpenWildpixel();
@@ -586,48 +719,116 @@ function WorkCard({
 }
 
 /* ============================================================
-   Drawer — physical claim cart
-   ============================================================ */
+ * Drawer — physical claim cart with real on-chain flow
+ *
+ * States the drawer can be in:
+ *   - claimFlow.kind === 'idle' AND no selection  → empty hint
+ *   - claimFlow.kind === 'idle' AND selection      → standard cart
+ *   - claimFlow.kind === 'pricing'                  → "READING PRICE FROM CHAIN…"
+ *   - claimFlow.kind === 'signing'                  → "SIGN IN WALLET…"
+ *   - claimFlow.kind === 'confirming'               → "CONFIRMING ON-CHAIN…"
+ *   - claimFlow.kind === 'paid'                     → ShippingForm
+ *   - claimFlow.kind === 'error'                    → error panel
+ * ============================================================ */
+
 function Drawer({
-  open, works, selected, paidTokens, onClose, onRemove, onCheckout,
+  open, works, selected, claimFlow, onClose, onRemove, onCheckout, onDismissError,
 }: {
   open: boolean;
   works: Work[];
   selected: Set<string>;
-  paidTokens: { tokenIds: number[]; txHash: string } | null;
+  claimFlow: ClaimFlow;
   onClose: () => void;
   onRemove: (id: string) => void;
   onCheckout: () => void;
+  onDismissError: () => void;
 }) {
   const selectedWorks = works.filter((w) => selected.has(w.id));
-  const subTot = selectedWorks.reduce((s, w) => s + PRICES[w.era].painting, 0);
-  const ship = selectedWorks.reduce((s, w) => s + PRICES[w.era].shipping, 0);
+  const subTot = selectedWorks.reduce((s, w) => s + PRICES_HINT[w.era].painting, 0);
+  const ship = selectedWorks.reduce((s, w) => s + PRICES_HINT[w.era].shipping, 0);
   const savings = selectedWorks.length >= BUNDLE_THRESHOLD ? BUNDLE_SHIPPING_SAVED : 0;
   const grand = subTot + ship - savings;
 
-  // Post-payment: swap to shipping form
-  if (paidTokens) {
+  // === Paid state — show shipping form ===
+  if (claimFlow.kind === 'paid') {
     return (
       <aside className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`}>
         <div className={styles.drawerHead}>
           <div>
-            <div className={styles.drawerEyebrow}>▼ PAYMENT CONFIRMED ▼</div>
+            <div className={styles.drawerEyebrow}>▼ PAYMENT CONFIRMED ON-CHAIN ▼</div>
             <h2 className={styles.drawerH2}>WHERE TO SHIP</h2>
           </div>
           <button className={styles.closeBtn} onClick={onClose} aria-label="Close">X</button>
         </div>
         <div className={styles.drawerBody}>
           <ShippingForm
-            tokenIds={paidTokens.tokenIds}
-            paymentTxHash={paidTokens.txHash}
-            onSubmitted={() => {
-              // Stay in success state — user dismisses with X
-            }}
+            tokenIds={claimFlow.tokenIds}
+            paymentTxHash={claimFlow.txHash}
+            onSubmitted={() => {/* user dismisses with X */}}
           />
         </div>
       </aside>
     );
   }
+
+  // === Error state ===
+  if (claimFlow.kind === 'error') {
+    let title = '★ CLAIM FAILED ★';
+    let body = claimFlow.message;
+    switch (claimFlow.revertName) {
+      case 'NotTokenOwner':
+        title = '★ NOT YOUR TOKEN ★';
+        body = 'You can only claim physicals for tokens in this wallet.';
+        break;
+      case 'AlreadyClaimed':
+        title = '★ ALREADY CLAIMED ★';
+        body = 'One of these tokens already has its physical claim recorded on-chain.';
+        break;
+      case 'WildpixelNotCompleted':
+        title = '★ WILDPIXEL INCOMPLETE ★';
+        body = 'Complete the wildpixel palette first — you can\'t claim a wildpixel painting before its palette is set.';
+        break;
+      case 'EmptyClaim':
+        title = '★ EMPTY CLAIM ★';
+        body = 'No tokens were submitted for claim.';
+        break;
+      case 'BadMsgValue':
+        title = '★ PRICE MISMATCH ★';
+        body = 'The price drifted between preview and claim. Refresh and try again.';
+        break;
+    }
+    return (
+      <aside className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`}>
+        <div className={styles.drawerHead}>
+          <div>
+            <div className={styles.drawerEyebrow}>▼ ERROR ▼</div>
+            <h2 className={styles.drawerH2}>{title}</h2>
+          </div>
+          <button className={styles.closeBtn} onClick={onClose} aria-label="Close">X</button>
+        </div>
+        <div className={styles.drawerBody}>
+          <div className={styles.drawerEmpty}>
+            {body}
+            {claimFlow.revertName && (
+              <><br /><br /><code style={{ fontSize: '11px', opacity: 0.5 }}>{claimFlow.revertName}</code></>
+            )}
+          </div>
+        </div>
+        <div className={styles.drawerTotals}>
+          <button className={styles.checkoutBtn} onClick={onDismissError}>
+            BACK TO CART ▶
+          </button>
+        </div>
+      </aside>
+    );
+  }
+
+  // === Standard cart / in-flight states ===
+  const busy = claimFlow.kind === 'pricing' || claimFlow.kind === 'signing' || claimFlow.kind === 'confirming';
+  let checkoutLabel = 'CONFIRM ORDER ▶';
+  if (claimFlow.kind === 'pricing') checkoutLabel = 'READING PRICE FROM CHAIN…';
+  else if (claimFlow.kind === 'signing') checkoutLabel = 'SIGN IN WALLET…';
+  else if (claimFlow.kind === 'confirming') checkoutLabel = 'CONFIRMING ON-CHAIN…';
 
   return (
     <aside className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`}>
@@ -647,7 +848,7 @@ function Drawer({
         ) : (
           selectedWorks.map((w) => {
             const cls = eraToClass(w.era);
-            const price = PRICES[w.era].painting;
+            const price = PRICES_HINT[w.era].painting;
             return (
               <div key={w.id} className={styles.drawerItem}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -663,6 +864,7 @@ function Drawer({
                   <button
                     className={styles.removeBtn}
                     onClick={() => onRemove(w.id)}
+                    disabled={busy}
                   >
                     ▼ REMOVE
                   </button>
@@ -682,14 +884,17 @@ function Drawer({
           </div>
         )}
         <div className={`${styles.totalRow} ${styles.grandRow}`}>
-          <span>TOTAL</span><span>{grand.toFixed(2)} ETH</span>
+          <span>TOTAL (estimate)</span><span>{grand.toFixed(2)} ETH</span>
+        </div>
+        <div style={{ fontSize: '10px', opacity: 0.5, textAlign: 'center', margin: '4px 0' }}>
+          ★ FINAL PRICE READ FROM CONTRACT ★
         </div>
         <button
           className={styles.checkoutBtn}
           onClick={onCheckout}
-          disabled={selectedWorks.length === 0}
+          disabled={selectedWorks.length === 0 || busy}
         >
-          CONFIRM ORDER ▶
+          {checkoutLabel}
         </button>
       </div>
     </aside>
@@ -697,8 +902,9 @@ function Drawer({
 }
 
 /* ============================================================
-   WildpixelModal — 4-step flow: Upload → Extract → Arrange → Lock
-   ============================================================ */
+ * WildpixelModal (unchanged from original)
+ * ============================================================ */
+
 function WildpixelModal({
   state, work, onChange, onClose, onLock,
 }: {
@@ -708,12 +914,7 @@ function WildpixelModal({
   onClose: () => void;
   onLock: () => void;
 }) {
-  // Hidden file input we trigger via a button click — more reliable than
-  // the <label for=""> pattern across mobile browsers
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  // Track timers spawned by the extraction stagger so we can clear them
-  // if the user navigates away mid-animation.
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
@@ -723,11 +924,8 @@ function WildpixelModal({
     };
   }, []);
 
-  // ESC closes the modal — nice to have
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
@@ -736,7 +934,6 @@ function WildpixelModal({
   const [rows, cols] = work.grid;
   const cls = eraToClass(work.era);
 
-  /* ---- Step controls ---- */
   const goNext = () => {
     if (state.step === 1) onChange({ ...state, step: 2 });
     else if (state.step === 2) onChange({ ...state, step: 3 });
@@ -747,14 +944,10 @@ function WildpixelModal({
     if (state.step > 1) onChange({ ...state, step: (state.step - 1) as 1 | 2 | 3 });
   };
 
-  /* ---- File upload — fires k-means on load ---- */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    // Reset the input value so picking the same file again still fires `change`.
-    // (Browsers debounce identical selections; this is the standard workaround.)
     e.target.value = '';
     if (!file) return;
-    // Enforce the 8MB cap advertised in the upload zone
     const MAX_BYTES = 8 * 1024 * 1024;
     if (file.size > MAX_BYTES) {
       alert(`File too large (${Math.round(file.size / 1024 / 1024)} MB). Max is 8 MB.`);
@@ -768,18 +961,13 @@ function WildpixelModal({
         const colors = extractDominantColors(img, 8);
         onChange({ ...state, extracted: { dataURL, colors } });
       };
-      img.onerror = () => {
-        alert('Could not load that image. Try a different file.');
-      };
+      img.onerror = () => alert('Could not load that image. Try a different file.');
       img.src = dataURL;
     };
-    reader.onerror = () => {
-      alert('Could not read that file. Try a different one.');
-    };
+    reader.onerror = () => alert('Could not read that file. Try a different one.');
     reader.readAsDataURL(file);
   };
 
-  /* ---- Re-roll the arrangement seed (step 3) ---- */
   const handleReroll = () => {
     if (state.rerollsLeft <= 0) return;
     onChange({
@@ -789,7 +977,6 @@ function WildpixelModal({
     });
   };
 
-  /* ---- Step labels + footer button states ---- */
   const nextLabel =
     state.step === 1 ? 'EXTRACT ▶'
       : state.step === 2 ? 'ARRANGE ▶'
@@ -812,7 +999,6 @@ function WildpixelModal({
           </div>
           <button className={styles.closeBtn} onClick={onClose} aria-label="Close">X</button>
         </div>
-
         <div className={styles.steps}>
           {(['1·UPLOAD', '2·EXTRACT', '3·ARRANGE', '4·LOCK'] as const).map((label, i) => {
             const n = i + 1;
@@ -828,7 +1014,6 @@ function WildpixelModal({
             );
           })}
         </div>
-
         <div className={styles.modalBody}>
           {state.step === 1 && (
             <>
@@ -839,13 +1024,9 @@ function WildpixelModal({
               >
                 <div className={styles.uploadIcon}>[ + ]</div>
                 <h3 className={styles.uploadH3}>UPLOAD YOUR GAME OR PFP</h3>
-                <p className={styles.uploadP}>
-                  Tap to upload your favorite arcade screenshot or pfp.
-                </p>
+                <p className={styles.uploadP}>Tap to upload your favorite arcade screenshot or pfp.</p>
                 <div className={styles.uploadNote}>PNG · JPG · WEBP · MAX 8MB</div>
               </button>
-              {/* File input sits outside the button — nested interactive
-                  elements are invalid HTML and trigger browser quirks. */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -860,40 +1041,26 @@ function WildpixelModal({
               </div>
             </>
           )}
-
           {state.step === 2 && state.extracted && (
-            <ExtractPanel
-              extracted={state.extracted}
-              timersRef={timersRef}
-            />
+            <ExtractPanel extracted={state.extracted} timersRef={timersRef} />
           )}
-
           {state.step === 3 && state.extracted && (
             <ArrangePanel
-              colors={state.extracted.colors}
-              rows={rows}
-              cols={cols}
-              seed={state.arrangementSeed}
-              eraClass={cls}
-              rerollsLeft={state.rerollsLeft}
-              onReroll={handleReroll}
+              colors={state.extracted.colors} rows={rows} cols={cols}
+              seed={state.arrangementSeed} eraClass={cls}
+              rerollsLeft={state.rerollsLeft} onReroll={handleReroll}
             />
           )}
-
           {state.step === 4 && state.extracted && (
             <FinalPanel
-              colors={state.extracted.colors}
-              rows={rows}
-              cols={cols}
-              seed={state.arrangementSeed}
-              eraClass={cls}
+              colors={state.extracted.colors} rows={rows} cols={cols}
+              seed={state.arrangementSeed} eraClass={cls}
               trait={state.trait}
               onTraitChange={(t) => onChange({ ...state, trait: t })}
               finalTitle={work.finalTitle}
             />
           )}
         </div>
-
         <div className={styles.modalFoot}>
           <button
             className={`${styles.coinBtn} ${styles.ghost}`}
@@ -903,11 +1070,7 @@ function WildpixelModal({
             ◄ BACK
           </button>
           <div className={styles.modalFootSpacer} />
-          <button
-            className={styles.coinBtn}
-            onClick={goNext}
-            disabled={nextDisabled}
-          >
+          <button className={styles.coinBtn} onClick={goNext} disabled={nextDisabled}>
             {nextLabel}
           </button>
         </div>
@@ -916,41 +1079,29 @@ function WildpixelModal({
   );
 }
 
-/* ============================================================
-   Step 2 — Extract panel (source preview + staggered swatches)
-   ============================================================ */
+/* ExtractPanel (unchanged) */
 function ExtractPanel({
   extracted, timersRef,
 }: {
   extracted: { dataURL: string; colors: string[] };
   timersRef: React.MutableRefObject<ReturnType<typeof setTimeout>[]>;
 }) {
-  // `litCount` controls how many swatches have animated in;
-  // `sourceDiscarded` toggles the source preview into "discarded" message
   const [litCount, setLitCount] = useState(0);
   const [sourceDiscarded, setSourceDiscarded] = useState(false);
-
   useEffect(() => {
-    // Reset on mount
     setLitCount(0);
     setSourceDiscarded(false);
-
-    // Stagger swatch reveal: 90ms between each
     extracted.colors.forEach((_, i) => {
       const t = setTimeout(() => setLitCount((n) => Math.max(n, i + 1)), 200 + i * 90);
       timersRef.current.push(t);
     });
-
-    // After all swatches are in, swap source preview to "discarded"
     const tFinal = setTimeout(() => setSourceDiscarded(true), 1600);
     timersRef.current.push(tFinal);
-
     return () => {
       timersRef.current.forEach(clearTimeout);
       timersRef.current = [];
     };
   }, [extracted, timersRef]);
-
   return (
     <div className={styles.extractedPreview}>
       <div>
@@ -988,38 +1139,25 @@ function ExtractPanel({
   );
 }
 
-/* ============================================================
-   Step 3 — Arrange panel (inline SVG + re-roll button)
-   ============================================================ */
+/* ArrangePanel (unchanged) */
 function ArrangePanel({
   colors, rows, cols, seed, eraClass, rerollsLeft, onReroll,
 }: {
   colors: string[];
-  rows: number;
-  cols: number;
-  seed: number;
-  eraClass: string;
-  rerollsLeft: number;
-  onReroll: () => void;
+  rows: number; cols: number;
+  seed: number; eraClass: string;
+  rerollsLeft: number; onReroll: () => void;
 }) {
-  // Compute arrangement on every render (deterministic given seed; cheap)
-  const cells = useMemo(
-    () => arrange(colors, rows, cols, seed),
-    [colors, rows, cols, seed]
-  );
+  const cells = useMemo(() => arrange(colors, rows, cols, seed), [colors, rows, cols, seed]);
   const svgHtml = useMemo(() => buildInlineSvg(cells, rows, cols), [cells, rows, cols]);
-
   return (
     <>
       <div className={styles.rerollInfo}>
         <span>ARRANGEMENT · SIM-ANNEAL</span>
-        <span>
-          RE-ROLLS LEFT: <span className={styles.rerollCount}>{rerollsLeft}</span> / 3
-        </span>
+        <span>RE-ROLLS LEFT: <span className={styles.rerollCount}>{rerollsLeft}</span> / 3</span>
         <button
           className={`${styles.coinBtn} ${styles.ghost} ${styles.rerollBtn}`}
-          onClick={onReroll}
-          disabled={rerollsLeft <= 0}
+          onClick={onReroll} disabled={rerollsLeft <= 0}
         >
           ◄ RE-ROLL
         </button>
@@ -1039,27 +1177,19 @@ function ArrangePanel({
   );
 }
 
-/* ============================================================
-   Step 4 — Final panel (preview + trait input)
-   ============================================================ */
+/* FinalPanel (unchanged) */
 function FinalPanel({
   colors, rows, cols, seed, eraClass, trait, onTraitChange, finalTitle,
 }: {
   colors: string[];
-  rows: number;
-  cols: number;
-  seed: number;
-  eraClass: string;
+  rows: number; cols: number;
+  seed: number; eraClass: string;
   trait: string;
   onTraitChange: (v: string) => void;
   finalTitle: string;
 }) {
-  const cells = useMemo(
-    () => arrange(colors, rows, cols, seed),
-    [colors, rows, cols, seed]
-  );
+  const cells = useMemo(() => arrange(colors, rows, cols, seed), [colors, rows, cols, seed]);
   const svgHtml = useMemo(() => buildInlineSvg(cells, rows, cols), [cells, rows, cols]);
-
   return (
     <>
       <div className={styles.arrangementStage}>
