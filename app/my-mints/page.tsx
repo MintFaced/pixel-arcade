@@ -116,6 +116,7 @@ export default function MyMintsPage() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
+  const publicClient = usePublicClient({ chainId: sepolia.id });
   const isOnSepolia = chainId === sepolia.id;
 
   const [works, setWorks] = useState<Work[]>([]);
@@ -433,7 +434,6 @@ export default function MyMintsPage() {
    * subscription. Imperative calls keep the React tree clean.
    * ---------------------------------------------------------- */
   const { writeContractAsync } = useWriteContract();
-  const publicClient = usePublicClient({ chainId: sepolia.id });
 
   // Track the pending tx for receipt watching
   const [pendingTxHash, setPendingTxHash] = useState<Hex | null>(null);
