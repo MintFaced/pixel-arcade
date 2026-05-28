@@ -79,19 +79,36 @@ type ClaimFlow =
   | { kind: 'paid'; tokenIds: number[]; txHash: Hex }       // tx confirmed, ready for shipping form
   | { kind: 'error'; message: string; revertName?: string };
 
+/** Wildpixel completion flow state — drives the modal's step-4 status display */
+type WildpixelFlow =
+  | { kind: 'idle' }
+  | { kind: 'pinning'; tokenId: number }                                  // POSTing to /api/wildpixel/complete
+  | { kind: 'signing'; tokenId: number; metadataURI: string }             // wallet popup open
+  | { kind: 'confirming'; tokenId: number; metadataURI: string; txHash: Hex }
+  | { kind: 'done'; tokenId: number; metadataURI: string; txHash: Hex }
+  | { kind: 'error'; tokenId: number; message: string; revertName?: string };
+
 /* ============================================================
  * Local price hints — DISPLAY ONLY
  * Real price comes from contract.previewClaimCost(). These values
- * just power the drawer's running-total preview before checkout.
+ * match the deployed contract's physicalPrice() and shippingFee()
+ * for accurate UI preview before the user clicks Confirm Order.
+ *
+ * From the contract:
+ *   physicalPrice[8-bit]  = 0.50 ETH
+ *   physicalPrice[16-bit] = 0.75 ETH
+ *   physicalPrice[32-bit] = 1.25 ETH
+ *   shippingFee           = 0.25 ETH (added once if n < bundleThreshold)
+ *   bundleThreshold       = 5 (claim 5+ tokens = no shipping fee)
  * ============================================================ */
 
-const PRICES_HINT: Record<Era, { painting: number; shipping: number }> = {
-  '8-bit':  { painting: 0.25, shipping: 0.25 },
-  '16-bit': { painting: 0.50, shipping: 0.25 },
-  '32-bit': { painting: 1.00, shipping: 0.25 },
+const PRICES_HINT: Record<Era, number> = {
+  '8-bit':  0.50,
+  '16-bit': 0.75,
+  '32-bit': 1.25,
 };
+const SHIPPING_FEE = 0.25;
 const BUNDLE_THRESHOLD = 5;
-const BUNDLE_SHIPPING_SAVED = 0.25;
 
 function eraToClass(era: Era): 'era-8' | 'era-16' | 'era-32' {
   return `era-${era.split('-')[0]}` as 'era-8' | 'era-16' | 'era-32';
@@ -129,6 +146,9 @@ export default function MyMintsPage() {
 
   /** Claim flow state — drives the drawer's behavior */
   const [claimFlow, setClaimFlow] = useState<ClaimFlow>({ kind: 'idle' });
+
+  /** Wildpixel completion flow state — drives the modal's status display */
+  const [wildpixelFlow, setWildpixelFlow] = useState<WildpixelFlow>({ kind: 'idle' });
 
   /* ESC handler */
   useEffect(() => {
@@ -245,38 +265,18 @@ export default function MyMintsPage() {
 
     (async () => {
       try {
-        // Step 1 — get Minted events for this collector
+        // Find tokens this wallet owns by iterating all 64 tokens and calling
+        // ownerOf on each. This is 64 RPC reads (cheap, parallel) and works on
+        // any RPC tier — unlike eth_getLogs which is restricted to 10-block
+        // ranges on Alchemy free tier.
         //
-        // Note: `fromBlock: 'earliest'` works for Sepolia + recently-deployed
-        // contracts but can time out on mainnet under heavy load. For mainnet,
-        // consider setting fromBlock to the contract's deployment block
-        // (use the block number from the contract creation tx on Etherscan).
-        const { parseAbiItem } = await import('viem');
-        const logs = await publicClient.getLogs({
-          address: PIXEL_ARCADE_ADDRESS,
-          event: parseAbiItem('event Minted(uint256 indexed tokenId, address indexed collector)'),
-          args: { collector: address },
-          fromBlock: 'earliest',
-          toBlock: 'latest',
-        });
-        if (cancelled) return;
+        // For a 64-piece collection, this is fast enough. For larger collections,
+        // an indexer (Subgraph, Alchemy NFT API) would scale better.
+        const TOTAL_SUPPLY = 64;
+        const allTokens = Array.from({ length: TOTAL_SUPPLY }, (_, i) => i + 1);
 
-        const candidateTokenIds = logs
-          .map((log) => log.args.tokenId)
-          .filter((t): t is bigint => t !== undefined)
-          .map((t) => Number(t));
-
-        if (candidateTokenIds.length === 0) {
-          // No mints from this wallet. If we have nothing from sessionStorage
-          // either, the gallery stays empty (EmptyState renders).
-          setIsLoadingMints(false);
-          return;
-        }
-
-        // Step 2 — verify ownership via the Manifold core. ownerOf reverts
-        // for un-minted tokens (shouldn't happen here, but be safe).
         const ownershipChecks = await Promise.all(
-          candidateTokenIds.map(async (tokenId) => {
+          allTokens.map(async (tokenId) => {
             try {
               const owner = (await publicClient.readContract({
                 address: MANIFOLD_CORE_ADDRESS,
@@ -286,6 +286,7 @@ export default function MyMintsPage() {
               })) as `0x${string}`;
               return owner.toLowerCase() === address.toLowerCase() ? tokenId : null;
             } catch {
+              // ownerOf reverts for un-minted tokens. Treat as "not owned".
               return null;
             }
           })
@@ -443,8 +444,9 @@ export default function MyMintsPage() {
       chainId: sepolia.id,
     });
 
-  // Transition the claim flow when tx resolves
+  // Transition the claim flow or wildpixel flow when tx resolves
   useEffect(() => {
+    // === Claim physical tx confirmation ===
     if (txSuccess && txReceipt && claimFlow.kind === 'confirming') {
       // Mark the works as physical now that payment is confirmed on-chain
       const claimedIds = new Set(claimFlow.tokenIds);
@@ -459,7 +461,35 @@ export default function MyMintsPage() {
       const revertMatch = /reverted with the following reason:\s*(\w+)/i.exec(msg);
       setClaimFlow({ kind: 'error', message: msg, revertName: revertMatch?.[1] });
     }
-  }, [txSuccess, txError, txReceipt, txErrorObj, claimFlow]);
+
+    // === Wildpixel completion tx confirmation ===
+    if (txSuccess && txReceipt && wildpixelFlow.kind === 'confirming') {
+      // Update the work — mark wildpixel as completed, store the trait + cells
+      setWorks((prev) =>
+        prev.map((w) =>
+          w.tokenId === wildpixelFlow.tokenId
+            ? { ...w, status: 'minted' as const }
+            : w
+        )
+      );
+      setWildpixelFlow({
+        kind: 'done',
+        tokenId: wildpixelFlow.tokenId,
+        metadataURI: wildpixelFlow.metadataURI,
+        txHash: txReceipt.transactionHash,
+      });
+      setToast(`★ WILDPIXEL #${wildpixelFlow.tokenId} COMPLETED ON-CHAIN ★`);
+    } else if (txError && wildpixelFlow.kind === 'confirming') {
+      const msg = txErrorObj instanceof Error ? txErrorObj.message : 'Transaction failed';
+      const revertMatch = /reverted with the following reason:\s*(\w+)/i.exec(msg);
+      setWildpixelFlow({
+        kind: 'error',
+        tokenId: wildpixelFlow.tokenId,
+        message: msg,
+        revertName: revertMatch?.[1],
+      });
+    }
+  }, [txSuccess, txError, txReceipt, txErrorObj, claimFlow, wildpixelFlow]);
 
   /**
    * Imperative read of previewClaimCost via a one-off useReadContract call.
@@ -576,25 +606,131 @@ export default function MyMintsPage() {
     });
   }, []);
 
-  const closeWildpixelModal = useCallback(() => setModal(null), []);
+  const closeWildpixelModal = useCallback(() => {
+    // Only allow closing if not mid-flow. If the user has a tx in flight,
+    // keep the modal open so they don't lose track.
+    if (
+      wildpixelFlow.kind === 'pinning' ||
+      wildpixelFlow.kind === 'signing' ||
+      wildpixelFlow.kind === 'confirming'
+    ) {
+      return;
+    }
+    setModal(null);
+    setWildpixelFlow({ kind: 'idle' });
+  }, [wildpixelFlow.kind]);
 
-  const lockWildpixel = useCallback(() => {
+  /**
+   * Real wildpixel completion — drives the full pipeline:
+   *   1. POST /api/wildpixel/complete with cells + trait → backend pins to IPFS
+   *   2. Returns metadataURI (ipfs://...)
+   *   3. Call completeWildpixel(tokenId, metadataURI) on the extension contract
+   *   4. Wait for tx receipt
+   *   5. Update local UI + toast
+   *
+   * The previous version updated local state only and showed a misleading
+   * "metadata written" toast. This version actually writes to chain.
+   */
+  const lockWildpixel = useCallback(async () => {
     if (!modal) return;
     if (!modal.extracted || modal.trait.trim().length === 0) return;
     const work = works.find((w) => w.id === modal.workId);
     if (!work) return;
+
+    // Validate wallet + chain
+    if (!isConnected || !address) {
+      setToast('★ CONNECT WALLET FIRST ★');
+      return;
+    }
+    if (!isOnSepolia) {
+      try {
+        await switchChainAsync({ chainId: sepolia.id });
+      } catch {
+        setToast('★ PLEASE SWITCH TO SEPOLIA ★');
+        return;
+      }
+    }
+
     const [rows, cols] = work.grid;
     const cells = arrange(modal.extracted.colors, rows, cols, modal.arrangementSeed);
+    const tokenId = work.tokenId;
+    const trait = modal.trait.trim();
+
+    // === Step 1: backend pinning ===
+    setWildpixelFlow({ kind: 'pinning', tokenId });
+
+    let metadataURI: string;
+    try {
+      const resp = await fetch('/api/wildpixel/complete', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tokenId, trait, cells, rows, cols }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.error ?? `Server error (${resp.status})`);
+      }
+      if (typeof data.metadataURI !== 'string') {
+        throw new Error('Server did not return metadataURI');
+      }
+      metadataURI = data.metadataURI;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Pinning failed';
+      console.error('[wildpixel] backend pin failed:', err);
+      setWildpixelFlow({ kind: 'error', tokenId, message });
+      return;
+    }
+
+    // === Step 2: on-chain completeWildpixel ===
+    setWildpixelFlow({ kind: 'signing', tokenId, metadataURI });
+
+    let txHash: Hex;
+    try {
+      txHash = await writeContractAsync({
+        address: PIXEL_ARCADE_ADDRESS,
+        abi: pixelArcadeAbi,
+        functionName: 'completeWildpixel',
+        args: [BigInt(tokenId), metadataURI],
+        chainId: sepolia.id,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Send failed';
+      console.error('[wildpixel] writeContract failed:', err);
+      if (msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('denied')) {
+        // User rejected — silent return to idle, modal stays open so they can retry
+        setWildpixelFlow({ kind: 'idle' });
+      } else {
+        const errData = (err as { data?: Hex; cause?: { data?: Hex } })?.data
+          ?? (err as { cause?: { data?: Hex } })?.cause?.data;
+        const revertName = decodeRevert(errData) ?? undefined;
+        setWildpixelFlow({ kind: 'error', tokenId, message: msg, revertName });
+      }
+      return;
+    }
+
+    // === Step 3: persist completedCells locally so it renders post-tx ===
     setWorks((prev) =>
       prev.map((w) =>
-        w.id === modal.workId
-          ? { ...w, completedCells: cells, trait: modal.trait.trim(), status: 'minted' }
+        w.tokenId === tokenId
+          ? { ...w, completedCells: cells, trait, status: w.status }
           : w
       )
     );
-    closeWildpixelModal();
-    setToast('★ WILDPIXEL LOCKED · METADATA WRITTEN ★');
-  }, [modal, works, closeWildpixelModal]);
+
+    // === Step 4: hand off to the receipt-watching effect ===
+    setPendingTxHash(txHash);
+    setWildpixelFlow({ kind: 'confirming', tokenId, metadataURI, txHash });
+  }, [
+    modal, works, isConnected, address, isOnSepolia,
+    switchChainAsync, writeContractAsync,
+  ]);
+
+  /** Close the wildpixel modal after a successful completion. Reset flow. */
+  const closeWildpixelDone = useCallback(() => {
+    setModal(null);
+    setWildpixelFlow({ kind: 'idle' });
+    setPendingTxHash(null);
+  }, []);
 
   /* ----------------------------------------------------------
    * Render
@@ -729,9 +865,12 @@ export default function MyMintsPage() {
         <WildpixelModal
           state={modal}
           work={works.find((w) => w.id === modal.workId)}
+          flow={wildpixelFlow}
           onChange={setModal}
           onClose={closeWildpixelModal}
           onLock={lockWildpixel}
+          onDone={closeWildpixelDone}
+          onDismissError={() => setWildpixelFlow({ kind: 'idle' })}
         />
       )}
 
@@ -928,10 +1067,12 @@ function Drawer({
   onDismissError: () => void;
 }) {
   const selectedWorks = works.filter((w) => selected.has(w.id));
-  const subTot = selectedWorks.reduce((s, w) => s + PRICES_HINT[w.era].painting, 0);
-  const ship = selectedWorks.reduce((s, w) => s + PRICES_HINT[w.era].shipping, 0);
-  const savings = selectedWorks.length >= BUNDLE_THRESHOLD ? BUNDLE_SHIPPING_SAVED : 0;
-  const grand = subTot + ship - savings;
+  // Sum of painting prices per the contract's physicalPrice() per era.
+  const paintingsTotal = selectedWorks.reduce((s, w) => s + PRICES_HINT[w.era], 0);
+  // Shipping fee added ONCE if claiming fewer than bundleThreshold tokens.
+  const shippingApplies = selectedWorks.length > 0 && selectedWorks.length < BUNDLE_THRESHOLD;
+  const shipping = shippingApplies ? SHIPPING_FEE : 0;
+  const grand = paintingsTotal + shipping;
 
   // === Paid state — show shipping form ===
   if (claimFlow.kind === 'paid') {
@@ -1032,7 +1173,7 @@ function Drawer({
         ) : (
           selectedWorks.map((w) => {
             const cls = eraToClass(w.era);
-            const price = PRICES_HINT[w.era].painting;
+            const price = PRICES_HINT[w.era];
             return (
               <div key={w.id} className={styles.drawerItem}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1060,13 +1201,14 @@ function Drawer({
         )}
       </div>
       <div className={styles.drawerTotals}>
-        <div className={styles.totalRow}><span>PAINTINGS</span><span>{subTot.toFixed(2)} ETH</span></div>
-        <div className={styles.totalRow}><span>BOX + SHIP</span><span>{ship.toFixed(2)} ETH</span></div>
-        {savings > 0 && (
+        <div className={styles.totalRow}><span>PAINTINGS</span><span>{paintingsTotal.toFixed(2)} ETH</span></div>
+        {shippingApplies ? (
+          <div className={styles.totalRow}><span>SHIPPING</span><span>{shipping.toFixed(2)} ETH</span></div>
+        ) : selectedWorks.length >= BUNDLE_THRESHOLD ? (
           <div className={`${styles.totalRow} ${styles.savingsRow}`}>
-            <span>★ BUNDLE BONUS ★</span><span>−{savings.toFixed(2)} ETH</span>
+            <span>★ BUNDLE · SHIPPING WAIVED ★</span><span>FREE</span>
           </div>
-        )}
+        ) : null}
         <div className={`${styles.totalRow} ${styles.grandRow}`}>
           <span>TOTAL (estimate)</span><span>{grand.toFixed(2)} ETH</span>
         </div>
@@ -1086,17 +1228,28 @@ function Drawer({
 }
 
 /* ============================================================
- * WildpixelModal (unchanged from original)
+ * WildpixelModal
+ *
+ * 4-step UI: Upload → Extract → Arrange → Lock (review + trait input).
+ *
+ * When the user clicks "LOCK ON-CHAIN" at step 4, the parent's lockWildpixel
+ * fires the full pipeline (backend pin → wallet sign → tx confirm). The modal
+ * stays mounted throughout and overlays its body with a status panel showing
+ * which phase the flow is in. On success, shows a "DONE" state with the tx
+ * hash + link to Etherscan, with a close button that dismisses the modal.
  * ============================================================ */
 
 function WildpixelModal({
-  state, work, onChange, onClose, onLock,
+  state, work, flow, onChange, onClose, onLock, onDone, onDismissError,
 }: {
   state: WildpixelModalState;
   work: Work | undefined;
+  flow: WildpixelFlow;
   onChange: (s: WildpixelModalState) => void;
   onClose: () => void;
-  onLock: () => void;
+  onLock: () => void | Promise<void>;
+  onDone: () => void;
+  onDismissError: () => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -1199,65 +1352,185 @@ function WildpixelModal({
           })}
         </div>
         <div className={styles.modalBody}>
-          {state.step === 1 && (
+          {flow.kind !== 'idle' ? (
+            <WildpixelFlowPanel flow={flow} onDone={onDone} onDismissError={onDismissError} />
+          ) : (
             <>
-              <button
-                type="button"
-                className={styles.uploadZone}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <div className={styles.uploadIcon}>[ + ]</div>
-                <h3 className={styles.uploadH3}>UPLOAD YOUR GAME OR PFP</h3>
-                <p className={styles.uploadP}>Tap to upload your favorite arcade screenshot or pfp.</p>
-                <div className={styles.uploadNote}>PNG · JPG · WEBP · MAX 8MB</div>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handleFileChange}
-              />
-              <div className={styles.infoText}>
-                Your image is analysed via <strong>K-MEANS CLUSTERING</strong> to extract 8 dominant colors.
-                The source image is <strong>DISCARDED IMMEDIATELY</strong> after extraction — only hex codes
-                and your entered game name are stored. This action is <strong>PERMANENT</strong> and on-chain.
-              </div>
+              {state.step === 1 && (
+                <>
+                  <button
+                    type="button"
+                    className={styles.uploadZone}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <div className={styles.uploadIcon}>[ + ]</div>
+                    <h3 className={styles.uploadH3}>UPLOAD YOUR GAME OR PFP</h3>
+                    <p className={styles.uploadP}>Tap to upload your favorite arcade screenshot or pfp.</p>
+                    <div className={styles.uploadNote}>PNG · JPG · WEBP · MAX 8MB</div>
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleFileChange}
+                  />
+                  <div className={styles.infoText}>
+                    Your image is analysed via <strong>K-MEANS CLUSTERING</strong> to extract 8 dominant colors.
+                    The source image is <strong>DISCARDED IMMEDIATELY</strong> after extraction — only hex codes
+                    and your entered game name are stored. This action is <strong>PERMANENT</strong> and on-chain.
+                  </div>
+                </>
+              )}
+              {state.step === 2 && state.extracted && (
+                <ExtractPanel extracted={state.extracted} timersRef={timersRef} />
+              )}
+              {state.step === 3 && state.extracted && (
+                <ArrangePanel
+                  colors={state.extracted.colors} rows={rows} cols={cols}
+                  seed={state.arrangementSeed} eraClass={cls}
+                  rerollsLeft={state.rerollsLeft} onReroll={handleReroll}
+                />
+              )}
+              {state.step === 4 && state.extracted && (
+                <FinalPanel
+                  colors={state.extracted.colors} rows={rows} cols={cols}
+                  seed={state.arrangementSeed} eraClass={cls}
+                  trait={state.trait}
+                  onTraitChange={(t) => onChange({ ...state, trait: t })}
+                  finalTitle={work.finalTitle}
+                />
+              )}
             </>
           )}
-          {state.step === 2 && state.extracted && (
-            <ExtractPanel extracted={state.extracted} timersRef={timersRef} />
-          )}
-          {state.step === 3 && state.extracted && (
-            <ArrangePanel
-              colors={state.extracted.colors} rows={rows} cols={cols}
-              seed={state.arrangementSeed} eraClass={cls}
-              rerollsLeft={state.rerollsLeft} onReroll={handleReroll}
-            />
-          )}
-          {state.step === 4 && state.extracted && (
-            <FinalPanel
-              colors={state.extracted.colors} rows={rows} cols={cols}
-              seed={state.arrangementSeed} eraClass={cls}
-              trait={state.trait}
-              onTraitChange={(t) => onChange({ ...state, trait: t })}
-              finalTitle={work.finalTitle}
-            />
-          )}
         </div>
-        <div className={styles.modalFoot}>
-          <button
-            className={`${styles.coinBtn} ${styles.ghost}`}
-            onClick={goBack}
-            hidden={state.step === 1}
+        {flow.kind === 'idle' && (
+          <div className={styles.modalFoot}>
+            <button
+              className={`${styles.coinBtn} ${styles.ghost}`}
+              onClick={goBack}
+              hidden={state.step === 1}
+            >
+              ◄ BACK
+            </button>
+            <div className={styles.modalFootSpacer} />
+            <button className={styles.coinBtn} onClick={goNext} disabled={nextDisabled}>
+              {nextLabel}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * WildpixelFlowPanel — status display during pinning/signing/confirming
+ * ============================================================ */
+
+function WildpixelFlowPanel({
+  flow, onDone, onDismissError,
+}: {
+  flow: WildpixelFlow;
+  onDone: () => void;
+  onDismissError: () => void;
+}) {
+  // Parent never renders this with flow.kind === 'idle', but the type system
+  // doesn't know that — return null defensively to narrow the union below.
+  if (flow.kind === 'idle') return null;
+
+  if (flow.kind === 'pinning') {
+    return (
+      <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+        <div style={{ fontSize: '14px', opacity: 0.7, marginBottom: 12 }}>▼ PHASE 1 OF 3 ▼</div>
+        <div style={{ fontSize: '20px', marginBottom: 16 }}>PINNING METADATA TO IPFS<span className={styles.blinkCursor} /></div>
+        <div className={styles.infoText}>
+          Generating the canonical SVG and metadata JSON, then pinning both to IPFS via Pinata.
+          This takes 5–15 seconds.
+        </div>
+      </div>
+    );
+  }
+  if (flow.kind === 'signing') {
+    return (
+      <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+        <div style={{ fontSize: '14px', opacity: 0.7, marginBottom: 12 }}>▼ PHASE 2 OF 3 ▼</div>
+        <div style={{ fontSize: '20px', marginBottom: 16 }}>SIGN IN WALLET<span className={styles.blinkCursor} /></div>
+        <div className={styles.infoText}>
+          A wallet popup is open. Sign to call <code>completeWildpixel(tokenId, metadataURI)</code> on
+          the PixelArcade extension. This writes your palette + trait permanently to the chain.
+        </div>
+      </div>
+    );
+  }
+  if (flow.kind === 'confirming') {
+    const shortHash = `${flow.txHash.slice(0, 10)}…${flow.txHash.slice(-8)}`;
+    return (
+      <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+        <div style={{ fontSize: '14px', opacity: 0.7, marginBottom: 12 }}>▼ PHASE 3 OF 3 ▼</div>
+        <div style={{ fontSize: '20px', marginBottom: 16 }}>CONFIRMING ON-CHAIN<span className={styles.blinkCursor} /></div>
+        <div className={styles.infoText}>
+          Transaction submitted. Waiting for Ethereum to confirm.
+          <br /><br />
+          <a
+            href={`https://sepolia.etherscan.io/tx/${flow.txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#00ffff', textDecoration: 'underline' }}
           >
-            ◄ BACK
-          </button>
-          <div className={styles.modalFootSpacer} />
-          <button className={styles.coinBtn} onClick={goNext} disabled={nextDisabled}>
-            {nextLabel}
+            View on Etherscan: {shortHash}
+          </a>
+        </div>
+      </div>
+    );
+  }
+  if (flow.kind === 'done') {
+    const shortHash = `${flow.txHash.slice(0, 10)}…${flow.txHash.slice(-8)}`;
+    return (
+      <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+        <div style={{ fontSize: '14px', opacity: 0.7, marginBottom: 12 }}>★ COMPLETE ★</div>
+        <div style={{ fontSize: '22px', marginBottom: 16, color: '#00ff66' }}>WILDPIXEL #{flow.tokenId} LOCKED</div>
+        <div className={styles.infoText}>
+          Your palette and trait are now permanently recorded on the Ethereum blockchain.
+          Marketplaces will update to show the new metadata within minutes.
+          <br /><br />
+          <a
+            href={`https://sepolia.etherscan.io/tx/${flow.txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#00ffff', textDecoration: 'underline' }}
+          >
+            View on Etherscan: {shortHash}
+          </a>
+        </div>
+        <div style={{ marginTop: 24 }}>
+          <button className={styles.coinBtn} onClick={onDone}>
+            ✓ DONE
           </button>
         </div>
+      </div>
+    );
+  }
+  // error
+  return (
+    <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+      <div style={{ fontSize: '14px', opacity: 0.7, marginBottom: 12 }}>▼ ERROR ▼</div>
+      <div style={{ fontSize: '20px', marginBottom: 16, color: '#ff3366' }}>
+        {flow.revertName === 'NotTokenOwner' ? 'NOT YOUR TOKEN'
+          : flow.revertName === 'NotWildpixel' ? 'NOT A WILDPIXEL'
+            : flow.revertName === 'AlreadyCompleted' ? 'ALREADY COMPLETED'
+              : 'COMPLETION FAILED'}
+      </div>
+      <div className={styles.infoText} style={{ wordBreak: 'break-word' }}>
+        {flow.message}
+        {flow.revertName && (
+          <><br /><br /><code style={{ fontSize: '11px', opacity: 0.5 }}>{flow.revertName}</code></>
+        )}
+      </div>
+      <div style={{ marginTop: 24 }}>
+        <button className={styles.coinBtn} onClick={onDismissError}>
+          ◄ BACK TO STEP 4
+        </button>
       </div>
     </div>
   );
