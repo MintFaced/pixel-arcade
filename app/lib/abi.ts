@@ -121,7 +121,7 @@ export const pixelArcadeAbi = [
 
 /**
  * Contract address — read at runtime from env to allow Sepolia/mainnet swap
- * without code change. Falls back to the Sepolia testnet address.
+ * without code change. Falls back to the current Sepolia testnet address.
  *
  * NOTE: NEXT_PUBLIC_ prefix means this is bundled into the client.
  * Different from the server-side CONTRACT_ADDRESS used by /api/mint-authorization.
@@ -129,7 +129,7 @@ export const pixelArcadeAbi = [
  */
 export const PIXEL_ARCADE_ADDRESS =
   (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}` | undefined) ??
-  '0x55B7619d8985Ca4Ac2Dd0CFffa2131980217bEa6';
+  '0xfAd64829D66E43389a11eC466f834D7f7f2b251C';
 
 /**
  * Manifold creator core address — the actual ERC-721 contract.
@@ -141,7 +141,7 @@ export const PIXEL_ARCADE_ADDRESS =
  */
 export const MANIFOLD_CORE_ADDRESS =
   (process.env.NEXT_PUBLIC_MANIFOLD_CORE as `0x${string}` | undefined) ??
-  '0x5f318EafAE56dd5feFa4E470523ceD0387b2b1BA';
+  '0x280C3C59688c004b7ed753666F17De9c4970EBf0';
 
 /**
  * Minimal ERC-721 ABI for the Manifold core — only the reads we need for
