@@ -129,7 +129,7 @@ export const pixelArcadeAbi = [
  */
 export const PIXEL_ARCADE_ADDRESS =
   (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}` | undefined) ??
-  '0xfAd64829D66E43389a11eC466f834D7f7f2b251C';
+  '0xFAD64829d66e43389A11ec466F834d7F7F2B251C';
 
 /**
  * Manifold creator core address — the actual ERC-721 contract.
