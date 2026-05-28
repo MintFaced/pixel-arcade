@@ -9,8 +9,8 @@ import {
   pinJsonToPinata,
   isWildpixelTokenId,
   wildpixelGridFor,
-} from '../../../../lib/wildpixel-server';
-import { pixelArcadeAbi, manifoldCoreAbi, PIXEL_ARCADE_ADDRESS, MANIFOLD_CORE_ADDRESS } from '../../../../lib/abi';
+} from '../../../lib/wildpixel-server';
+import { pixelArcadeAbi, manifoldCoreAbi, PIXEL_ARCADE_ADDRESS, MANIFOLD_CORE_ADDRESS } from '../../../lib/abi';
 
 /**
  * POST /api/wildpixel/complete
