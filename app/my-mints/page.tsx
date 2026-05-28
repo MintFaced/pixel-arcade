@@ -6,7 +6,7 @@ import {
   useAccount, useChainId, usePublicClient, useSwitchChain,
   useWriteContract, useWaitForTransactionReceipt,
 } from 'wagmi';
-import { sepolia } from 'wagmi/chains';
+import { ACTIVE_CHAIN_ID, ACTIVE_CHAIN_NAME, txUrl } from '../lib/wagmiConfig';
 import { decodeErrorResult, type Hex } from 'viem';
 
 import { svgPath, eraDimensionLabel, type Era } from '../lib/pool';
@@ -133,8 +133,8 @@ export default function MyMintsPage() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
-  const publicClient = usePublicClient({ chainId: sepolia.id });
-  const isOnSepolia = chainId === sepolia.id;
+  const publicClient = usePublicClient({ chainId: ACTIVE_CHAIN_ID });
+  const isOnActiveChain = chainId === ACTIVE_CHAIN_ID;
 
   const [works, setWorks] = useState<Work[]>([]);
   const [filter, setFilter] = useState<FilterKey>('all');
@@ -441,7 +441,7 @@ export default function MyMintsPage() {
   const { data: txReceipt, isSuccess: txSuccess, isError: txError, error: txErrorObj } =
     useWaitForTransactionReceipt({
       hash: pendingTxHash ?? undefined,
-      chainId: sepolia.id,
+      chainId: ACTIVE_CHAIN_ID,
     });
 
   // Transition the claim flow or wildpixel flow when tx resolves
@@ -511,11 +511,11 @@ export default function MyMintsPage() {
       setToast('★ CONNECT WALLET FIRST ★');
       return;
     }
-    if (!isOnSepolia) {
+    if (!isOnActiveChain) {
       try {
-        await switchChainAsync({ chainId: sepolia.id });
+        await switchChainAsync({ chainId: ACTIVE_CHAIN_ID });
       } catch {
-        setToast('★ PLEASE SWITCH TO SEPOLIA ★');
+        setToast(`★ PLEASE SWITCH TO ${ACTIVE_CHAIN_NAME.toUpperCase()} ★`);
         return;
       }
     }
@@ -529,7 +529,7 @@ export default function MyMintsPage() {
     let cost: bigint;
     try {
       if (!publicClient) {
-        throw new Error('No public client available — wallet not connected to Sepolia');
+        throw new Error(`No public client available — wallet not connected to ${ACTIVE_CHAIN_NAME}`);
       }
       cost = (await publicClient.readContract({
         address: PIXEL_ARCADE_ADDRESS,
@@ -558,7 +558,7 @@ export default function MyMintsPage() {
         functionName: 'claimPhysical',
         args: [tokenIdsBig],
         value: cost,
-        chainId: sepolia.id,
+        chainId: ACTIVE_CHAIN_ID,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Send failed';
@@ -577,7 +577,7 @@ export default function MyMintsPage() {
     // Step 3 — wait for receipt (handled by useWaitForTransactionReceipt effect above)
     setPendingTxHash(txHash);
     setClaimFlow({ kind: 'confirming', tokenIds, txHash });
-  }, [works, selected, isConnected, address, isOnSepolia, switchChainAsync, writeContractAsync, publicClient]);
+  }, [works, selected, isConnected, address, isOnActiveChain, switchChainAsync, writeContractAsync, publicClient]);
 
   /* ----------------------------------------------------------
    * Drawer close — also resets claim flow
@@ -642,11 +642,11 @@ export default function MyMintsPage() {
       setToast('★ CONNECT WALLET FIRST ★');
       return;
     }
-    if (!isOnSepolia) {
+    if (!isOnActiveChain) {
       try {
-        await switchChainAsync({ chainId: sepolia.id });
+        await switchChainAsync({ chainId: ACTIVE_CHAIN_ID });
       } catch {
-        setToast('★ PLEASE SWITCH TO SEPOLIA ★');
+        setToast(`★ PLEASE SWITCH TO ${ACTIVE_CHAIN_NAME.toUpperCase()} ★`);
         return;
       }
     }
@@ -691,7 +691,7 @@ export default function MyMintsPage() {
         abi: pixelArcadeAbi,
         functionName: 'completeWildpixel',
         args: [BigInt(tokenId), metadataURI],
-        chainId: sepolia.id,
+        chainId: ACTIVE_CHAIN_ID,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Send failed';
@@ -721,7 +721,7 @@ export default function MyMintsPage() {
     setPendingTxHash(txHash);
     setWildpixelFlow({ kind: 'confirming', tokenId, metadataURI, txHash });
   }, [
-    modal, works, isConnected, address, isOnSepolia,
+    modal, works, isConnected, address, isOnActiveChain,
     switchChainAsync, writeContractAsync,
   ]);
 
@@ -930,7 +930,7 @@ function PostMintBanner({
         <span className={styles.pmbText}>
           <strong>FRESH MINT</strong> · {count} WORK{count !== 1 && 'S'} ADDED TO YOUR WALLET ·{' '}
           TX <a
-            href={`https://sepolia.etherscan.io/tx/${txHash}`}
+            href={txUrl(txHash)}
             target="_blank"
             rel="noopener noreferrer"
             className={styles.pmbHash}
@@ -1473,7 +1473,7 @@ function WildpixelFlowPanel({
           Transaction submitted. Waiting for Ethereum to confirm.
           <br /><br />
           <a
-            href={`https://sepolia.etherscan.io/tx/${flow.txHash}`}
+            href={txUrl(flow.txHash)}
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: '#00ffff', textDecoration: 'underline' }}
@@ -1495,7 +1495,7 @@ function WildpixelFlowPanel({
           Marketplaces will update to show the new metadata within minutes.
           <br /><br />
           <a
-            href={`https://sepolia.etherscan.io/tx/${flow.txHash}`}
+            href={txUrl(flow.txHash)}
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: '#00ffff', textDecoration: 'underline' }}
