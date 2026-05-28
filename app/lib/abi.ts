@@ -69,6 +69,26 @@ export const pixelArcadeAbi = [
     stateMutability: 'payable',
     type: 'function',
   },
+  // === WILDPIXEL COMPLETION ===
+  // Owner-only metadata rewrite for the 4 wildpixel tokens (12, 14, 15, 17).
+  // Pass the new IPFS URI returned by /api/wildpixel/complete after pinning.
+  {
+    inputs: [
+      { internalType: 'uint256', name: 'tokenId', type: 'uint256' },
+      { internalType: 'string', name: 'newTokenURI', type: 'string' },
+    ],
+    name: 'completeWildpixel',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    name: 'isWildpixel',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
   {
     inputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
     name: 'physicalClaimed',
@@ -103,6 +123,16 @@ export const pixelArcadeAbi = [
     name: 'PhysicalClaimed',
     type: 'event',
   },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'tokenId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'owner', type: 'address' },
+      { indexed: false, internalType: 'string', name: 'newTokenURI', type: 'string' },
+    ],
+    name: 'WildpixelCompleted',
+    type: 'event',
+  },
   // === CUSTOM ERRORS (so viem can decode reverts into readable names) ===
   { inputs: [], name: 'AlreadyMinted', type: 'error' },
   { inputs: [], name: 'AuthAlreadyUsed', type: 'error' },
@@ -117,6 +147,9 @@ export const pixelArcadeAbi = [
   { inputs: [], name: 'EmptyClaim', type: 'error' },
   { inputs: [], name: 'NotTokenOwner', type: 'error' },
   { inputs: [], name: 'WildpixelNotCompleted', type: 'error' },
+  // === Wildpixel-completion errors ===
+  { inputs: [], name: 'NotWildpixel', type: 'error' },
+  { inputs: [], name: 'AlreadyCompleted', type: 'error' },
 ] as const;
 
 /**
