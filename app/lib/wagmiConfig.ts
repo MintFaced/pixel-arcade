@@ -1,15 +1,18 @@
 'use client';
 
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { sepolia, mainnet } from 'wagmi/chains';
+import { sepolia, mainnet, type Chain } from 'wagmi/chains';
 import { http } from 'wagmi';
 
 /**
  * Wagmi + RainbowKit configuration.
  *
- * Chains:
- *   - Sepolia (primary) — where mints happen during testnet phase
- *   - Mainnet (read-only) — for ENS resolution and Line lookup
+ * Chain selection is driven by NEXT_PUBLIC_CHAIN_ID. The whole app reads
+ * from ACTIVE_CHAIN / ACTIVE_CHAIN_ID / ETHERSCAN_BASE below, so flipping
+ * from testnet to mainnet is a single env-var change — no code edits.
+ *
+ *   NEXT_PUBLIC_CHAIN_ID=11155111  →  Sepolia testnet
+ *   NEXT_PUBLIC_CHAIN_ID=1         →  Ethereum mainnet
  *
  * RPC transports:
  *   - Uses Alchemy for both chains when NEXT_PUBLIC_ALCHEMY_KEY is set
@@ -38,6 +41,39 @@ function transportFor(chainPrefix: string) {
 const sepoliaTransport = transportFor('eth-sepolia');
 const mainnetTransport = transportFor('eth-mainnet');
 
+/**
+ * Active chain — driven by NEXT_PUBLIC_CHAIN_ID env var. Defaults to Sepolia
+ * for safety (if the var is missing or malformed, we don't accidentally
+ * route to mainnet).
+ *
+ * Note we use NEXT_PUBLIC_CHAIN_ID here (client-readable), separate from the
+ * server-only CHAIN_ID that the EIP-712 signing route uses. They must match.
+ */
+const envChainId = process.env.NEXT_PUBLIC_CHAIN_ID;
+export const ACTIVE_CHAIN: Chain = envChainId === '1' ? mainnet : sepolia;
+export const ACTIVE_CHAIN_ID: number = ACTIVE_CHAIN.id;
+export const ACTIVE_CHAIN_NAME: string = ACTIVE_CHAIN.name;
+
+/**
+ * Etherscan URL base for the active chain. Used for tx links in the UI.
+ * Mainnet: https://etherscan.io
+ * Sepolia: https://sepolia.etherscan.io
+ */
+export const ETHERSCAN_BASE: string =
+  ACTIVE_CHAIN_ID === mainnet.id
+    ? 'https://etherscan.io'
+    : 'https://sepolia.etherscan.io';
+
+/** Build a tx URL for the active chain. */
+export function txUrl(txHash: string): string {
+  return `${ETHERSCAN_BASE}/tx/${txHash}`;
+}
+
+/** Build an address URL for the active chain. */
+export function addressUrl(addr: string): string {
+  return `${ETHERSCAN_BASE}/address/${addr}`;
+}
+
 export const wagmiConfig = getDefaultConfig({
   appName: 'PixelArcade',
   projectId,
@@ -54,5 +90,3 @@ export const wagmiConfig = getDefaultConfig({
     : {}),
 });
 
-/** The chain we expect users to mint on (toggle to mainnet for production). */
-export const ACTIVE_CHAIN_ID = sepolia.id;
