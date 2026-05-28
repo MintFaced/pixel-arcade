@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAccount, useChainId, useSwitchChain, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
-import { sepolia } from 'wagmi/chains';
+import { ACTIVE_CHAIN_ID, ACTIVE_CHAIN_NAME, txUrl } from '../lib/wagmiConfig';
 import { decodeErrorResult, type Hex } from 'viem';
 
 import { POOL, MINT_PRICE, POOL_TOTAL, svgPath, eraClass, type PoolGame } from '../lib/pool';
@@ -96,7 +96,7 @@ export default function MintPage() {
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { openConnectModal } = useConnectModal();
-  const isOnSepolia = chainId === sepolia.id;
+  const isOnActiveChain = chainId === ACTIVE_CHAIN_ID;
 
   // === Authentication (SIWE) ===
   const { login: siweLogin, checkAuthed, signing: siweSigning } = useSiweLogin();
@@ -200,11 +200,11 @@ export default function MintPage() {
     }
 
     // Step 2: ensure correct chain
-    if (!isOnSepolia) {
+    if (!isOnActiveChain) {
       try {
-        await switchChainAsync({ chainId: sepolia.id });
+        await switchChainAsync({ chainId: ACTIVE_CHAIN_ID });
       } catch {
-        setToast('★ PLEASE SWITCH TO SEPOLIA ★');
+        setToast(`★ PLEASE SWITCH TO ${ACTIVE_CHAIN_NAME.toUpperCase()} ★`);
         return;
       }
     }
@@ -224,7 +224,7 @@ export default function MintPage() {
     // Step 4: roll
     await doRoll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, isOnSepolia, isAuthed, openConnectModal, switchChainAsync, siweLogin]);
+  }, [isConnected, isOnActiveChain, isAuthed, openConnectModal, switchChainAsync, siweLogin]);
 
   /* ----------------------------------------------------------
    * doRoll — calls /api/roll, kicks off the rolling animation
@@ -358,7 +358,7 @@ export default function MintPage() {
   const { data: txReceipt, isSuccess: txSuccess, isError: txError, error: txErrorObj } =
     useWaitForTransactionReceipt({
       hash: pendingTxHash ?? undefined,
-      chainId: sepolia.id,
+      chainId: ACTIVE_CHAIN_ID,
     });
 
   // Hand-off after tx confirmation
@@ -417,7 +417,7 @@ export default function MintPage() {
           signed.signature,
         ],
         value: BigInt(signed.message.totalPrice),
-        chainId: sepolia.id,
+        chainId: ACTIVE_CHAIN_ID,
       });
     } catch (err) {
       // User rejected, or wallet failed to send
@@ -470,7 +470,7 @@ export default function MintPage() {
         isConnected={isConnected}
         isAuthed={isAuthed}
         siweSigning={siweSigning}
-        isOnSepolia={isOnSepolia}
+        isOnActiveChain={isOnActiveChain}
       />
     );
   } else if (phase === 'rolling' && currentGame) {
@@ -583,7 +583,7 @@ export default function MintPage() {
 
 function IdleScreen({
   isFirst, allUsed, rollsLeft, rollsCount, onStart,
-  isConnected, isAuthed, siweSigning, isOnSepolia,
+  isConnected, isAuthed, siweSigning, isOnActiveChain,
 }: {
   isFirst: boolean;
   allUsed: boolean;
@@ -593,7 +593,7 @@ function IdleScreen({
   isConnected: boolean;
   isAuthed: boolean;
   siweSigning: boolean;
-  isOnSepolia: boolean;
+  isOnActiveChain: boolean;
 }) {
   if (allUsed) {
     return (
@@ -614,7 +614,7 @@ function IdleScreen({
   let buttonLabel = 'ROLL AGAIN ▶';
   if (isFirst) {
     if (!isConnected) buttonLabel = 'CONNECT & PLAY ▶';
-    else if (!isOnSepolia) buttonLabel = 'SWITCH TO SEPOLIA ▶';
+    else if (!isOnActiveChain) buttonLabel = `SWITCH TO ${ACTIVE_CHAIN_NAME.toUpperCase()} ▶`;
     else if (siweSigning) buttonLabel = 'SIGNING IN…';
     else if (!isAuthed) buttonLabel = 'SIGN IN & PLAY ▶';
     else buttonLabel = 'INSERT COIN ▶';
@@ -957,7 +957,7 @@ function SuccessOverlay({ count, txHash }: { count: number; txHash: string }) {
         <div className={styles.successSub}>
           <span className={styles.successHl}>{count}</span> WORK{count !== 1 && 'S'} NOW IN YOUR WALLET<br />
           TX: <a
-            href={`https://sepolia.etherscan.io/tx/${txHash}`}
+            href={txUrl(txHash)}
             target="_blank"
             rel="noopener noreferrer"
             className={styles.successHash}
