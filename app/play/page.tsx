@@ -247,6 +247,12 @@ export default function PlayPage() {
 
   /** Refs let the rAF loop see latest phase + callbacks without recreating itself */
   const phaseRef = useRef<GamePhase>('pre-game');
+  /**
+   * Timestamp after which gamepad input is sent to the engine. Set briefly into
+   * the future whenever startGame() runs, so the held buttons that triggered the
+   * start press don't carry over as first-frame inputs in the new game.
+   */
+  const inputGateUntilRef = useRef<number>(0);
   const startGameRef = useRef<((mode?: 'single' | 'twoPlayer') => void) | null>(null);
 
   // Keep phaseRef in sync with state
@@ -277,12 +283,19 @@ export default function PlayPage() {
       const s = engine.getStats();
       const padIndex = (s.mode === 'twoPlayer' && s.currentPlayer === 2) ? 1 : 0;
       const snap = readGamepad(padIndex);
-      // Send held-button state to engine (OR-merged with keyboard)
-      engine.setGamepadInput({
-        left: snap.left,
-        right: snap.right,
-        fire: snap.fire,
-      });
+     // Send held-button state to engine (OR-merged with keyboard).
+      // During post-startGame grace period, actively zero inputs — prevents the
+      // joystick + button that the visitor pressed to start from carrying over
+      // into the first frames of real gameplay.
+      if (performance.now() >= inputGateUntilRef.current) {
+        engine.setGamepadInput({
+          left: snap.left,
+          right: snap.right,
+          fire: snap.fire,
+        });
+      } else {
+        engine.setGamepadInput({ left: false, right: false, fire: false });
+      }
       // Edge-triggered start press handles phase transitions
       if (snap.startPressed) {
         const p = phaseRef.current;
@@ -547,6 +560,10 @@ export default function PlayPage() {
     if (!engineRef.current || !loadState.done) return;
     // Audio unlock — covers all click-driven entry points (button + demo overlay)
     getAudio().unlock();
+    // Gate gamepad input for 350ms — prevents the buttons used to start the
+    // game (and the joystick being held when the player reached for them) from
+    // being read as first-frame gameplay input.
+    inputGateUntilRef.current = performance.now() + 350;
     const m = mode ?? selectedMode;
     if (mode) setSelectedMode(mode);
     // Tear down any demo / timers first
