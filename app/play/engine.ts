@@ -1199,6 +1199,11 @@ export class GameEngine {
    */
   start(startWave?: number, mode: 'single' | 'twoPlayer' = 'single') {
     this.demoMode = false;
+    // Clear any held inputs from demo / from the keypress that triggered start.
+    // Prevents "ship pinned to edge + auto-firing" bug when visitor grabs the
+    // joystick to press start.
+    this.input = { left: false, right: false, fire: false };
+    this.gamepadInput = { left: false, right: false, fire: false };
     this.mode = mode;
     this.currentPlayer = 1;
     this.p1Score = 0;
