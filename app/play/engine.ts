@@ -1356,9 +1356,16 @@ export class GameEngine {
           // 1-4, 6-9, 11-14, etc. into shared chapter tracks)
           if (!this.demoMode) void getAudio().playMusic(musicForWave(this.wave));
         }
-        this.phase = 'playing';
+     this.phase = 'playing';
         this.phaseTime = 0;
         this.diveTimer = 1.5;
+        // Defensive: clear any stale input state that may have leaked from
+        // touch events, demo mode, or any pre-game phase. Polling loops
+        // (gamepad/keyboard) will immediately re-assert any genuinely-held
+        // input on the next frame, but stale 'fire: true' from missed
+        // touchend events or similar won't be re-asserted.
+        this.input = { left: false, right: false, fire: false };
+        this.gamepadInput = { left: false, right: false, fire: false };
         this.emitPhase();
       }
       return;
