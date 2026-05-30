@@ -15,7 +15,7 @@
  */
 
 import type { Assets, LoadedCharacter } from './assets';
-import { SFX, ensureAudio } from './audio';
+import { SFX, ensureAudio, playMusic, stopMusic, playVictory } from './audio';
 
 // ============ CONFIG ====================================================
 const W = 600;
@@ -288,6 +288,9 @@ export function startEngine(canvas: HTMLCanvasElement, assets: Assets): () => vo
     state.modeTimer = 0;
     state.p1.ballInside = false; state.p2.ballInside = false;
     ensureAudio();
+    // Per-character music — P1's pick wins, matching the bg rule.
+    const trackName = assets.characters[state.p1.spriteName]?.music;
+    if (trackName) playMusic(trackName);
   }
 
   function gotoSelect() {
@@ -438,6 +441,7 @@ export function startEngine(canvas: HTMLCanvasElement, assets: Assets): () => vo
     if (justPressed.has('Escape')) {
       state.mode = Mode.ATTRACT;
       state.modeTimer = 0;
+      stopMusic();
     }
 
     switch (state.mode) {
@@ -471,7 +475,7 @@ export function startEngine(canvas: HTMLCanvasElement, assets: Assets): () => vo
             state.winner = state.p1.score > state.p2.score ? 1 : 2;
             state.mode = Mode.GAME_OVER;
             state.modeTimer = 0;
-            SFX.win();
+            playVictory();              // stinger replaces the loop track
           } else {
             state.mode = Mode.READY;
             state.modeTimer = 0;
@@ -484,6 +488,7 @@ export function startEngine(canvas: HTMLCanvasElement, assets: Assets): () => vo
           state.attractDemos.length = 0;
           state.mode = Mode.ATTRACT;
           state.modeTimer = 0;
+          stopMusic();                  // silence the cabinet between players
         }
         break;
     }
@@ -784,5 +789,6 @@ export function startEngine(canvas: HTMLCanvasElement, assets: Assets): () => vo
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
     window.removeEventListener('resize', onResize);
+    stopMusic();
   };
 }

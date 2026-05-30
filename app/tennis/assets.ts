@@ -1,10 +1,13 @@
 /**
  * Tennis assets — types and loader.
  *
- * Single fetch of /tennis/roster.json gives us polygons, bg mapping, and
- * ball SVG path data. Sprite PNGs and background GIFs are loaded as Image
- * objects from /tennis/sprites/ and /tennis/backgrounds/ respectively.
+ * Single fetch of /tennis/roster.json gives us polygons, bg mapping, music
+ * mapping, and ball SVG path data. Sprite PNGs and background GIFs load as
+ * Image objects; music tracks load via HTMLAudioElement (registered with
+ * the audio module so it can play them by name).
  */
+
+import { registerMusic } from './audio';
 
 const PUB = '/tennis';
 
@@ -15,14 +18,16 @@ export interface CharacterData {
   height: number;
   polygon: number[][];   // sprite-pixel coords
   bg: string;            // bg name without extension, e.g. 'sidewayz'
+  music: string;         // music registry key, e.g. 'fire_level'
 }
 
 export interface RosterData {
   version: number;
   characters: CharacterData[];
-  backgrounds: string[];        // filenames like 'sidewayz.gif'
-  ballFrames: string[][];       // 4 frames, each an array of SVG path strings
-  ballViewBox: number;          // the SVG viewBox dimension (3000)
+  backgrounds: string[];                // filenames like 'sidewayz.gif'
+  music: Record<string, string>;        // name → filename, includes 'victory' stinger
+  ballFrames: string[][];               // 4 frames, each an array of SVG path strings
+  ballViewBox: number;                  // the SVG viewBox dimension (3000)
 }
 
 export interface LoadedCharacter extends CharacterData {
@@ -80,6 +85,14 @@ export async function loadAssets(): Promise<Assets> {
     const img = new Image();
     img.src = `${PUB}/backgrounds/${bgFile}`;
     bgs[name] = img;
+  }
+
+  // Music tracks — register each one with the audio module by name.
+  // Browser will lazy-load via HTMLAudioElement preload='auto'.
+  if (roster.music) {
+    for (const [name, file] of Object.entries(roster.music)) {
+      registerMusic(name, `${PUB}/audio/music/${file}`);
+    }
   }
 
   // Build Path2D objects per ball frame
