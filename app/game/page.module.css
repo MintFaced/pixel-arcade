@@ -1,0 +1,74 @@
+.stage {
+  position: fixed;
+  inset: 0;
+  height: 100vh;
+  width: 100vw;
+  background: #1a1410;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  user-select: none;
+  font-family: 'Silkscreen', monospace;
+  color: #f4f4f0;
+}
+
+.stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.25) 2px,
+    rgba(0, 0, 0, 0.25) 3px
+  );
+}
+
+.stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 11;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 30%,
+    rgba(0, 0, 0, 0.5) 100%
+  );
+}
+
+.canvas {
+  background: #0a0612;
+  image-rendering: pixelated;
+  outline: none;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 2px #ff5aa8,
+    0 0 32px rgba(255, 90, 168, 0.35),
+    0 0 80px rgba(255, 150, 200, 0.12);
+}
+
+.canvas:focus {
+  box-shadow:
+    0 0 0 2px #5fc850,
+    0 0 32px rgba(95, 200, 80, 0.4),
+    0 0 80px rgba(95, 200, 80, 0.15);
+}
+
+.hint {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: #806060;
+  letter-spacing: 1.5px;
+  z-index: 5;
+  pointer-events: none;
+  text-align: center;
+}
