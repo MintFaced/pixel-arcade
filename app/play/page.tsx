@@ -6,6 +6,7 @@ import { GameEngine, type GameStats, type GamePhase, PLAYFIELD_W, PLAYFIELD_H } 
 import { loadAssets, type AssetBundle } from './assets';
 import { readGamepad, gamepadCount } from './gamepad';
 import { getAudio } from './audio';
+import BackToArcade from '../components/BackToArcade'; 
 import styles from './page.module.css';
 
 /**
@@ -595,6 +596,7 @@ export default function PlayPage() {
       className={rotation !== 0 ? styles.rotateWrap : undefined}
       data-rotate={rotation || undefined}
     >
+      <BackToArcade />
       <header className={styles.marquee}>
         <div className={styles.marqueeLeft}>
           <Link href="/">★ PIXELARCADE.ART</Link>
