@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import TennisGame from './TennisGame';
+import BackToArcade from '../components/BackToArcade';
 
 export const metadata: Metadata = {
   title: 'XNoun Tennis · Pixel Arcade',
@@ -7,5 +8,10 @@ export const metadata: Metadata = {
 };
 
 export default function TennisPage() {
-  return <TennisGame />;
+  return (
+    <>
+      <BackToArcade />
+      <TennisGame />
+    </>
+  );
 }
