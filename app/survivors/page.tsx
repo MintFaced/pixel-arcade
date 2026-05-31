@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import SurvivorsGame from './SurvivorsGame';
+import BackToArcade from '../components/BackToArcade';
 
 export const metadata: Metadata = {
   title: 'DICKBUTT SURVIVORS · Gooch Island',
@@ -7,5 +8,10 @@ export const metadata: Metadata = {
 };
 
 export default function SurvivorsPage() {
-  return <SurvivorsGame />;
+  return (
+    <>
+      <BackToArcade />
+      <SurvivorsGame />
+    </>
+  );
 }
