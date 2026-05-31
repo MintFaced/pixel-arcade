@@ -4,8 +4,16 @@ import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
 
 const W = 600, H = 1000;
-const CABINET_H = 540;
-const GAP = 14;
+
+// 2×2 grid geometry
+const TILE_W = 280;
+const TILE_H = 470;
+const GAP = 20;
+const COLS = 2, ROWS = 2;
+const GRID_W = TILE_W * COLS + GAP * (COLS - 1);
+const GRID_H = TILE_H * ROWS + GAP * (ROWS - 1);
+const GRID_X0 = (W - GRID_W) / 2;
+const GRID_Y0 = (H - GRID_H) / 2;
 
 type Game = { name: string; url: string; color: string; preview: string };
 
@@ -13,6 +21,7 @@ const GAMES: Game[] = [
   { name: 'TENNIS',    url: '/tennis',    color: '#38f2c6', preview: '/game/previews/tennis.png' },
   { name: 'SWARM',     url: '/play',      color: '#ff5aa8', preview: '/game/previews/swarm.png' },
   { name: 'SURVIVORS', url: '/survivors', color: '#5fc850', preview: '/game/previews/survivors.png' },
+  { name: 'TX6900',    url: '/tx6900',    color: '#5bf2a0', preview: '/game/previews/tx6900.png' },
 ];
 
 export default function GameLobby() {
@@ -49,20 +58,26 @@ export default function GameLobby() {
 
     const padPrev: (boolean | number)[] = [];
     function padEdges() {
-      const out = { L: false, R: false, A: false };
+      const out = { U: false, D: false, L: false, R: false, A: false };
       const pads = navigator.getGamepads ? navigator.getGamepads() : [];
       for (const p of pads) {
         if (!p) continue;
-        const lx = p.axes[0] ?? 0;
-        const dir = Math.abs(lx) > 0.4 ? Math.sign(lx) : 0;
-        const lastDir = (padPrev[100] as number) ?? 0;
-        if (dir === 1 && lastDir !== 1) out.R = true;
-        if (dir === -1 && lastDir !== -1) out.L = true;
-        padPrev[100] = dir;
+        const lx = p.axes[0] ?? 0, ly = p.axes[1] ?? 0;
+        const dx = Math.abs(lx) > 0.4 ? Math.sign(lx) : 0;
+        const dy = Math.abs(ly) > 0.4 ? Math.sign(ly) : 0;
+        const lastX = (padPrev[100] as number) ?? 0;
+        const lastY = (padPrev[101] as number) ?? 0;
+        if (dx === 1  && lastX !== 1)  out.R = true;
+        if (dx === -1 && lastX !== -1) out.L = true;
+        if (dy === 1  && lastY !== 1)  out.D = true;
+        if (dy === -1 && lastY !== -1) out.U = true;
+        padPrev[100] = dx; padPrev[101] = dy;
         const b = p.buttons;
-        if (b[14]?.pressed && !padPrev[14]) out.L = true;
-        if (b[15]?.pressed && !padPrev[15]) out.R = true;
-        padPrev[14] = !!b[14]?.pressed; padPrev[15] = !!b[15]?.pressed;
+        const checkBtn = (idx: number, key: 'U'|'D'|'L'|'R') => {
+          if (b[idx]?.pressed && !padPrev[idx]) out[key] = true;
+          padPrev[idx] = !!b[idx]?.pressed;
+        };
+        checkBtn(12, 'U'); checkBtn(13, 'D'); checkBtn(14, 'L'); checkBtn(15, 'R');
         if (b[0]?.pressed && !padPrev[0]) out.A = true;
         if (b[9]?.pressed && !padPrev[9]) out.A = true;
         padPrev[0] = !!b[0]?.pressed; padPrev[9] = !!b[9]?.pressed;
@@ -93,25 +108,12 @@ export default function GameLobby() {
       select: () => [523, 784].forEach((f, i) => setTimeout(() => blip(f, 0.1, 'square', 0.06), i * 80)),
     };
 
-    type Cabinet = Game & { x: number; y: number; w: number; h: number; img: HTMLImageElement };
-    let layout: Cabinet[] | null = null;
-    function computeLayout(): boolean {
-      if (!allLoaded) return false;
-      const cabs: Cabinet[] = GAMES.map(g => {
-        const im = imgs[g.preview];
-        const w = Math.round(CABINET_H * (im.naturalWidth / im.naturalHeight));
-        return { ...g, w, h: CABINET_H, img: im, x: 0, y: 0 };
-      });
-      const totalW = cabs.reduce((s, c) => s + c.w, 0) + GAP * (cabs.length - 1);
-      let x = (W - totalW) / 2;
-      const y = (H - CABINET_H) / 2;
-      for (const c of cabs) { c.x = x; c.y = y; x += c.w + GAP; }
-      layout = cabs;
-      return true;
-    }
-
-    function move(dx: number) {
-      state.selected = (state.selected + dx + GAMES.length) % GAMES.length;
+    function move(dx: number, dy: number) {
+      const c = state.selected % COLS;
+      const r = Math.floor(state.selected / COLS);
+      const nc = (c + dx + COLS) % COLS;
+      const nr = (r + dy + ROWS) % ROWS;
+      state.selected = nr * COLS + nc;
       SFX.move();
     }
     function launch() {
@@ -120,6 +122,11 @@ export default function GameLobby() {
       state.launchT = 0;
       SFX.select();
       window.setTimeout(() => { router.push(g.url); }, 700);
+    }
+
+    function tileRect(idx: number) {
+      const r = Math.floor(idx / COLS), c = idx % COLS;
+      return { x: GRID_X0 + c * (TILE_W + GAP), y: GRID_Y0 + r * (TILE_H + GAP), w: TILE_W, h: TILE_H };
     }
 
     let displayScale = 1;
@@ -151,33 +158,63 @@ export default function GameLobby() {
       }
     }
 
-    function drawCabinet(c: Cabinet, idx: number) {
+    function drawCabinet(idx: number) {
+      const g = GAMES[idx];
+      const rect = tileRect(idx);
       const isSel = idx === state.selected;
-      const bob = isSel ? Math.sin(state.t * 2.5) * 2 : 0;
-      const y = c.y + bob;
+      const bob = isSel ? Math.sin(state.t * 2.5) * 1.5 : 0;
+      const y = rect.y + bob;
+
+      ctx.fillStyle = '#08040e';
+      ctx.fillRect(rect.x, y, rect.w, rect.h);
+
+      const im = imgs[g.preview];
+      if (im && im.complete && im.naturalWidth > 0) {
+        const ia = im.naturalWidth / im.naturalHeight;
+        const ta = rect.w / rect.h;
+        let dw, dh;
+        // COVER fit: fill the tile, overflow clipped
+        if (ia > ta) {
+          // Image relatively wider: fit by HEIGHT, crop sides
+          dh = rect.h; dw = rect.h * ia;
+        } else {
+          // Image relatively taller: fit by WIDTH, crop top/bottom
+          dw = rect.w; dh = rect.w / ia;
+        }
+        const dx = rect.x + (rect.w - dw) / 2;
+        const dy = y + (rect.h - dh) / 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(rect.x, y, rect.w, rect.h);
+        ctx.clip();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(im, dx, dy, dw, dh);
+        ctx.restore();
+      }
+
       if (isSel) {
         const pulse = (Math.sin(state.t * 4) + 1) / 2;
         ctx.save();
-        ctx.shadowColor = c.color; ctx.shadowBlur = 30 + pulse * 22;
-        ctx.strokeStyle = c.color; ctx.lineWidth = 4;
-        ctx.strokeRect(c.x - 2, y - 2, c.w + 4, c.h + 4);
+        ctx.shadowColor = g.color;
+        ctx.shadowBlur = 28 + pulse * 22;
+        ctx.strokeStyle = g.color;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(rect.x - 2, y - 2, rect.w + 4, rect.h + 4);
         ctx.restore();
         ctx.save();
-        ctx.strokeStyle = c.color;
-        ctx.globalAlpha = 0.5 + pulse * 0.4;
+        ctx.strokeStyle = g.color;
+        ctx.globalAlpha = 0.45 + pulse * 0.4;
         ctx.lineWidth = 2;
-        ctx.strokeRect(c.x - 6, y - 6, c.w + 12, c.h + 12);
+        ctx.strokeRect(rect.x - 7, y - 7, rect.w + 14, rect.h + 14);
         ctx.restore();
       } else {
-        ctx.strokeStyle = 'rgba(120, 110, 130, 0.35)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(c.x - 1, y - 1, c.w + 2, c.h + 2);
-      }
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(c.img, c.x, y, c.w, c.h);
-      if (!isSel) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-        ctx.fillRect(c.x, y, c.w, c.h);
+        ctx.strokeStyle = g.color;
+        ctx.globalAlpha = 0.25;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(rect.x, y, rect.w, rect.h);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.fillRect(rect.x, y, rect.w, rect.h);
       }
     }
 
@@ -198,8 +235,7 @@ export default function GameLobby() {
 
     function render() {
       drawBg();
-      if (!computeLayout()) return;
-      for (let i = 0; i < layout!.length; i++) drawCabinet(layout![i], i);
+      if (allLoaded) for (let i = 0; i < GAMES.length; i++) drawCabinet(i);
       drawLaunchSplash();
     }
 
@@ -207,8 +243,10 @@ export default function GameLobby() {
       state.t += dt;
       if (state.launching) { state.launchT += dt; pressed.clear(); return; }
       const pe = padEdges();
-      if (pressed.has('ArrowLeft') || pressed.has('KeyA') || pe.L) move(-1);
-      else if (pressed.has('ArrowRight') || pressed.has('KeyD') || pe.R) move(+1);
+      if      (pressed.has('ArrowLeft')  || pressed.has('KeyA') || pe.L) move(-1, 0);
+      else if (pressed.has('ArrowRight') || pressed.has('KeyD') || pe.R) move(+1, 0);
+      else if (pressed.has('ArrowUp')    || pressed.has('KeyW') || pe.U) move(0, -1);
+      else if (pressed.has('ArrowDown')  || pressed.has('KeyS') || pe.D) move(0, +1);
       else if (pressed.has('Enter') || pressed.has('Space') || pe.A) launch();
       pressed.clear();
     }
@@ -235,13 +273,12 @@ export default function GameLobby() {
     canvas.addEventListener('mousedown', onCanvasMouseDown);
     document.body.addEventListener('mousedown', onCanvasMouseDown);
     const onCanvasClick = (e: MouseEvent) => {
-      if (!layout) return;
       const rect = canvas!.getBoundingClientRect();
       const cx = (e.clientX - rect.left) * (W / rect.width);
       const cy = (e.clientY - rect.top) * (H / rect.height);
-      for (let i = 0; i < layout!.length; i++) {
-        const c = layout![i];
-        if (cx >= c.x && cx < c.x + c.w && cy >= c.y && cy < c.y + c.h) {
+      for (let i = 0; i < GAMES.length; i++) {
+        const r = tileRect(i);
+        if (cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h) {
           if (i === state.selected) launch();
           else { state.selected = i; SFX.move(); }
           return;
