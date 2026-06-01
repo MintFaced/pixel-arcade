@@ -165,6 +165,82 @@ export function startEngine(canvas: HTMLCanvasElement, assets: Assets): () => vo
   const keys = new Set<string>();
   const justPressed = new Set<string>();
 
+  // Gamepad button edge-state. We poll pads each frame and synthesize the
+  // SAME `justPressed` codes the keyboard produces, so every menu branch
+  // (select, attract, game-over, C-toggle, ESC) works unchanged. Movement
+  // during PLAYING is handled separately in readPaddleInput (analog).
+  // Per pad index we remember last-frame pressed-state for the buttons we map.
+  const padBtnPrev: Record<number, Record<number, boolean>> = {};
+  // For analog-stick "menu nudges" we also edge-detect stick pushes per pad.
+  const padAxisPrev: Record<number, { left: boolean; right: boolean }> = {};
+
+  /**
+   * Poll gamepads and inject synthetic justPressed codes for menu navigation.
+   *
+   * Mapping (standard layout):
+   *   Pad 0 → P1 menu codes (KeyA/KeyD move, Space confirm)
+   *   Pad 1 → P2 menu codes (ArrowLeft/ArrowRight move, Enter confirm)
+   *   D-pad L/R (14/15) or left-stick X → cursor move (edge-triggered)
+   *   Face button A (0) or Start (9) → confirm for that player
+   *   Select/Back (8) on pad 0 → KeyC (CPU/P2 toggle) — a "less-common" button
+   *   B (1) on pad 0 → Escape (back to attract)
+   *
+   * Attract & game-over already accept Enter/Space; we feed pad0/pad1 confirm
+   * as 'Enter' so those screens advance too.
+   */
+  function pollGamepadMenu() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    if (!pads) return;
+    for (let i = 0; i < 2; i++) {
+      const gp = pads[i];
+      if (!gp) { padBtnPrev[i] = {}; padAxisPrev[i] = { left: false, right: false }; continue; }
+      const prev = padBtnPrev[i] || (padBtnPrev[i] = {});
+      const axPrev = padAxisPrev[i] || (padAxisPrev[i] = { left: false, right: false });
+
+      // Edge helper: true only on the frame button b transitions up→down.
+      const edge = (b: number): boolean => {
+        const now = gp.buttons[b]?.pressed ?? false;
+        const was = prev[b] ?? false;
+        prev[b] = now;
+        return now && !was;
+      };
+
+      // Directional codes differ per player column.
+      const moveLeftCode  = i === 0 ? 'KeyA' : 'ArrowLeft';
+      const moveRightCode = i === 0 ? 'KeyD' : 'ArrowRight';
+      // P1 confirms with Space (matching keyboard), P2 with Enter.
+      const confirmCode   = i === 0 ? 'Space' : 'Enter';
+
+      // D-pad left/right → move (edge)
+      if (edge(14)) justPressed.add(moveLeftCode);
+      if (edge(15)) justPressed.add(moveRightCode);
+
+      // Left-stick X → move, edge-detected so a held stick = one step per push.
+      const sx = gp.axes[0] || 0;
+      const stickLeft  = sx < -0.5;
+      const stickRight = sx >  0.5;
+      if (stickLeft  && !axPrev.left)  justPressed.add(moveLeftCode);
+      if (stickRight && !axPrev.right) justPressed.add(moveRightCode);
+      axPrev.left = stickLeft; axPrev.right = stickRight;
+
+      // Face A (0) or Start (9) → confirm for this player.
+      if (edge(0) || edge(9)) {
+        justPressed.add(confirmCode);
+        // Attract/game-over branches only listen for Enter/Space. Inject a
+        // generic 'Enter' so either pad can advance those screens — BUT not on
+        // the select screen, where 'Enter' is specifically P2's confirm and a
+        // pad-0 press must not also confirm P2.
+        if (state.mode !== Mode.SELECT) justPressed.add('Enter');
+      }
+
+      // Pad 0 utility buttons: Select/Back (8) → CPU toggle, B (1) → back.
+      if (i === 0) {
+        if (edge(8)) justPressed.add('KeyC');
+        if (edge(1)) justPressed.add('Escape');
+      }
+    }
+  }
+
   const onKeyDown = (e: KeyboardEvent) => {
     if (!keys.has(e.code)) justPressed.add(e.code);
     keys.add(e.code);
@@ -430,6 +506,10 @@ export function startEngine(canvas: HTMLCanvasElement, assets: Assets): () => vo
   function update(dt: number) {
     state.modeTimer += dt;
     state.hitFlash = Math.max(0, state.hitFlash - dt);
+
+    // Fold gamepad button edges into justPressed BEFORE any menu logic reads it,
+    // so pads drive select/attract/game-over/C/ESC exactly like the keyboard.
+    pollGamepadMenu();
 
     if (justPressed.has('KeyC')) {
       if (state.mode === Mode.ATTRACT || state.mode === Mode.SELECT ||
