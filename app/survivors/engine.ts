@@ -181,7 +181,7 @@ function todAt(t01: number): TOD {
 // ============ ENGINE FACTORY ============================================
 export type Engine = { start: () => void; stop: () => void };
 
-export function createEngine(opts: { canvas: HTMLCanvasElement; stage: HTMLElement; assets: Assets }): Engine {
+export function createEngine(opts: { canvas: HTMLCanvasElement; stage: HTMLElement; assets: Assets; onExit?: () => void }): Engine {
   const { canvas, stage, assets } = opts;
   const ctx = canvas.getContext('2d')!;
 
@@ -381,19 +381,22 @@ export function createEngine(opts: { canvas: HTMLCanvasElement; stage: HTMLEleme
 
   // Gamepad button edges for menus
   const padPrev: boolean[] = [];
-  function readPadEdges(): { start?: boolean; choice1?: boolean; choice2?: boolean; choice3?: boolean } {
+  function readPadEdges(): { start?: boolean; choice1?: boolean; choice2?: boolean; choice3?: boolean; back?: boolean } {
     const out: any = {};
     const pads = navigator.getGamepads?.() ?? [];
     for (const pad of pads) {
       if (!pad) continue;
       const b = pad.buttons;
-      // Map common buttons: A (0), B (1), X (2), Y (3), Start (9)
+      // Map common buttons: A (0), B (1), X (2), Y (3), Select/Back (8), Start (9)
       const wasA = padPrev[0]; if (b[0]?.pressed && !wasA) out.choice1 = true;
       padPrev[0] = !!b[0]?.pressed;
       const wasB = padPrev[1]; if (b[1]?.pressed && !wasB) out.choice2 = true;
       padPrev[1] = !!b[1]?.pressed;
       const wasX = padPrev[2]; if (b[2]?.pressed && !wasX) out.choice3 = true;
       padPrev[2] = !!b[2]?.pressed;
+      // Select/Back (8) → leave the game entirely (back to the arcade).
+      const wasBack = padPrev[8]; if (b[8]?.pressed && !wasBack) out.back = true;
+      padPrev[8] = !!b[8]?.pressed;
       const wasStart = padPrev[9]; if (b[9]?.pressed && !wasStart) out.start = true;
       padPrev[9] = !!b[9]?.pressed;
       break;
@@ -771,13 +774,24 @@ export function createEngine(opts: { canvas: HTMLCanvasElement; stage: HTMLEleme
     state.modeTimer += dt;
     state.attractBlink += dt;
     const padEdges = readPadEdges();
+
+    // Global "back to arcade" — Select/Back (button 8) or keyboard Escape, from
+    // ANY screen. Leaves the game entirely via the onExit callback (the React
+    // layer performs the actual navigation). Handled before the per-mode switch
+    // so the older Escape→internal-TITLE branches below don't also fire.
+    if (padEdges.back || justPressed.has('Escape')) {
+      justPressed.clear();
+      if (opts.onExit) opts.onExit();
+      return;
+    }
+
     switch (state.mode) {
       case Mode.TITLE:
         if (justPressed.size > 0 || padEdges.start || padEdges.choice1) resetGame();
         break;
       case Mode.PLAYING:
         updatePlaying(dt);
-        if (justPressed.has('Escape') || padEdges.start) { state.mode = Mode.TITLE; state.modeTimer = 0; }
+        if (padEdges.start) { state.mode = Mode.TITLE; state.modeTimer = 0; }
         break;
       case Mode.LEVEL_UP:
         if ((justPressed.has('Digit1') || padEdges.choice1) && state.levelUpChoices[0])
@@ -790,14 +804,14 @@ export function createEngine(opts: { canvas: HTMLCanvasElement; stage: HTMLEleme
       case Mode.GAME_OVER:
         if (state.modeTimer > 1.0 && (justPressed.has('KeyR') || padEdges.choice1)) resetGame();
         else if (state.modeTimer > 1.0 &&
-                 (justPressed.has('Enter') || justPressed.has('Space') || justPressed.has('Escape') || padEdges.start)) {
+                 (justPressed.has('Enter') || justPressed.has('Space') || padEdges.start)) {
           state.mode = Mode.TITLE; state.modeTimer = 0;
         }
         break;
       case Mode.WIN:
         if (state.modeTimer > 1.0 &&
             (justPressed.has('Enter') || justPressed.has('Space') ||
-             justPressed.has('KeyR') || justPressed.has('Escape') || padEdges.start || padEdges.choice1)) {
+             justPressed.has('KeyR') || padEdges.start || padEdges.choice1)) {
           state.mode = Mode.TITLE; state.modeTimer = 0;
         }
         break;
