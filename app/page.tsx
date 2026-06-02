@@ -53,7 +53,7 @@ export default function Home() {
           ★ <Link href="/wizards" className={styles.wizardsLink}>WIZARDS</Link> ★
         </div>
         <div className={styles.buildLine}>
-          COLLECTION BY <span className={styles.hl}>MINTFACE</span> · CONTRACT BY <span className={styles.hl}>YUNGWKND</span> ·
+          COLLECTION BY <span className={styles.hl}>MINTFACE</span> · CONTRACT BY <span className={styles.hl}>YUNGWKND</span> · <a href="https://opensea.io/collection/pixelarcade-/overview" target="_blank" rel="noopener noreferrer" className={styles.wizardsLink}>OPENSEA →</a>
         </div>
         <div>
           © 2026 MINTFACE · 64 ARCADE PIXEL PAINTINGS 🍒
