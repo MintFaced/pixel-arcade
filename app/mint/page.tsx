@@ -611,12 +611,7 @@ function IdleScreen({
   }
 
   // Determine the button label from current state
-  let buttonLabel = 'ROLL AGAIN ▶';
-  if (isFirst) {
-    if (!isConnected) buttonLabel = 'CONNECT & PLAY ▶';
-    else if (!isOnActiveChain) buttonLabel = `SWITCH TO ${ACTIVE_CHAIN_NAME.toUpperCase()} ▶`;
-    else if (siweSigning) buttonLabel = 'SIGNING IN…';
-    else if (let buttonLabel = 'ROLL AGAIN ▶';
+ let buttonLabel = 'ROLL AGAIN ▶';
 if (isFirst) {
   if (!isConnected) buttonLabel = 'CONNECT & PLAY ▶';
   else if (!isOnActiveChain) buttonLabel = `SWITCH TO ${ACTIVE_CHAIN_NAME.toUpperCase()} ▶`;
