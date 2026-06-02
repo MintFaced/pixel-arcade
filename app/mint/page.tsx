@@ -616,9 +616,14 @@ function IdleScreen({
     if (!isConnected) buttonLabel = 'CONNECT & PLAY ▶';
     else if (!isOnActiveChain) buttonLabel = `SWITCH TO ${ACTIVE_CHAIN_NAME.toUpperCase()} ▶`;
     else if (siweSigning) buttonLabel = 'SIGNING IN…';
-    else if (!isAuthed) buttonLabel = 'SIGN IN & PLAY ▶';
-    else buttonLabel = 'INSERT COIN ▶';
-  }
+    else if (let buttonLabel = 'ROLL AGAIN ▶';
+if (isFirst) {
+  if (!isConnected) buttonLabel = 'CONNECT & PLAY ▶';
+  else if (!isOnActiveChain) buttonLabel = `SWITCH TO ${ACTIVE_CHAIN_NAME.toUpperCase()} ▶`;
+  else if (siweSigning) buttonLabel = 'SIGNING…';
+  else if (!isAuthed) buttonLabel = 'SIGN TO ROLL ▶';
+  else buttonLabel = 'ROLL ▶';
+}
 
   return (
     <div className={styles.idleScreen}>
