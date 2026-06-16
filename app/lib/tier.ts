@@ -53,10 +53,38 @@ const TIER_TO_ROLLS: Record<Tier, number> = {
   elevated: 5,
 };
 
+/**
+ * Special-case unlimited-rolls allowlist. Used for the artist wallet
+ * (mintface.eth) to roll repeatedly when gifting specific tokens to
+ * collaborators. Effectively infinite — collectors choose their token,
+ * tell the artist the ID, the artist rolls until they hit it, then
+ * mints + transfers as a gift.
+ *
+ * Addresses are stored lowercase. Add more here if needed; remove
+ * post-gifting if desired.
+ */
+const UNLIMITED_ROLL_ADDRESSES = new Set<string>([
+  '0xd40b63bf04a44e43fbfe5784bcf22acaab34a180', // mintface.eth
+]);
+
 /** Look up a wallet's tier. Always returns a valid result (standard by default). */
 export async function lookupTier(address: string): Promise<TierLookupResult> {
+  const lowered = address.toLowerCase();
+  
+  // Unlimited-rolls allowlist (mintface.eth and any other admin wallets)
+  // takes precedence over standard tier lookup. Returns elevated tier with
+  // a huge rolls/day cap, no Merkle proof required.
+  if (UNLIMITED_ROLL_ADDRESSES.has(lowered)) {
+    return {
+      tier: 'elevated',
+      rollsPerDay: 9999,
+      proof: [],
+      tierValue: 1,
+    };
+  }
+  
   const proofs = await loadProofs();
-  const entry = proofs[address.toLowerCase()];
+  const entry = proofs[lowered];
   if (entry && entry.tier === 1) {
     return {
       tier: 'elevated',
